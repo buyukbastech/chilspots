@@ -85,6 +85,28 @@ export function LoginModal({ children, open: controlledOpen, onOpenChange: contr
     }
   };
 
+  const handleResetPassword = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error(t('enterEmailFirst') || "Lütfen önce e-posta adresinizi girin.");
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+      if (error) throw error;
+      toast.success(t('resetPasswordLinkSent') || "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children && (
@@ -154,7 +176,14 @@ export function LoginModal({ children, open: controlledOpen, onOpenChange: contr
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="user-password">{t('password')}</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="user-password">{t('password')}</Label>
+                  {!isRegistering && (
+                    <button type="button" onClick={handleResetPassword} className="text-xs text-primary hover:underline" disabled={isLoading}>
+                      {t('forgotPassword') || "Şifremi Unuttum"}
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 
@@ -196,7 +225,12 @@ export function LoginModal({ children, open: controlledOpen, onOpenChange: contr
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="business-password">{t('password')}</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="business-password">{t('password')}</Label>
+                  <button type="button" onClick={handleResetPassword} className="text-xs text-primary hover:underline" disabled={isLoading}>
+                    {t('forgotPassword') || "Şifremi Unuttum"}
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input 

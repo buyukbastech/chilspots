@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BusinessRegisterRouteImport } from './routes/business-register'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as UpdatePasswordRouteImport } from './routes/update-password'
 import { Route as VenuePlaceIdRouteImport } from './routes/venue.$placeId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UpdatePasswordRoute = UpdatePasswordRouteImport.update({
+  id: '/update-password',
+  path: '/update-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VenuePlaceIdRoute = VenuePlaceIdRouteImport.update({
   id: '/venue/$placeId',
   path: '/venue/$placeId',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/business-register': typeof BusinessRegisterRoute
   '/profile': typeof ProfileRoute
+  '/update-password': typeof UpdatePasswordRoute
   '/venue/$placeId': typeof VenuePlaceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/business-register': typeof BusinessRegisterRoute
   '/profile': typeof ProfileRoute
+  '/update-password': typeof UpdatePasswordRoute
   '/venue/$placeId': typeof VenuePlaceIdRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,38 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/business-register': typeof BusinessRegisterRoute
   '/profile': typeof ProfileRoute
+  '/update-password': typeof UpdatePasswordRoute
   '/venue/$placeId': typeof VenuePlaceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/business-register' | '/profile' | '/venue/$placeId'
+  fullPaths:
+    | '/'
+    | '/business-register'
+    | '/profile'
+    | '/update-password'
+    | '/venue/$placeId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/business-register' | '/profile' | '/venue/$placeId'
-  id: '__root__' | '/' | '/business-register' | '/profile' | '/venue/$placeId'
+  to:
+    | '/'
+    | '/business-register'
+    | '/profile'
+    | '/update-password'
+    | '/venue/$placeId'
+  id:
+    | '__root__'
+    | '/'
+    | '/business-register'
+    | '/profile'
+    | '/update-password'
+    | '/venue/$placeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BusinessRegisterRoute: typeof BusinessRegisterRoute
   ProfileRoute: typeof ProfileRoute
+  UpdatePasswordRoute: typeof UpdatePasswordRoute
   VenuePlaceIdRoute: typeof VenuePlaceIdRoute
 }
 
@@ -92,6 +118,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/update-password': {
+      id: '/update-password'
+      path: '/update-password'
+      fullPath: '/update-password'
+      preLoaderRoute: typeof UpdatePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/venue/$placeId': {
       id: '/venue/$placeId'
       path: '/venue/$placeId'
@@ -106,6 +139,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BusinessRegisterRoute: BusinessRegisterRoute,
   ProfileRoute: ProfileRoute,
+  UpdatePasswordRoute: UpdatePasswordRoute,
   VenuePlaceIdRoute: VenuePlaceIdRoute,
 }
 export const routeTree = rootRouteImport

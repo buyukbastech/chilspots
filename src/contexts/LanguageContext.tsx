@@ -28,6 +28,14 @@ const translations: Translations = {
   haveAccount: { tr: "Zaten hesabınız var mı?", en: "Already have an account?" },
   welcomeBack: { tr: "Tekrar Hoş Geldiniz", en: "Welcome Back" },
   createAccount: { tr: "Hesap Oluşturun", en: "Create an Account" },
+  forgotPassword: { tr: "Şifremi Unuttum", en: "Forgot Password" },
+  enterEmailFirst: { tr: "Lütfen önce e-posta adresinizi girin.", en: "Please enter your email address first." },
+  resetPasswordLinkSent: { tr: "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.", en: "A password reset link has been sent to your email address." },
+  updatePassword: { tr: "Şifrenizi Güncelleyin", en: "Update Your Password" },
+  newPassword: { tr: "Yeni Şifre", en: "New Password" },
+  confirmPassword: { tr: "Yeni Şifre (Tekrar)", en: "Confirm New Password" },
+  passwordsDoNotMatch: { tr: "Şifreler eşleşmiyor.", en: "Passwords do not match." },
+  passwordUpdated: { tr: "Şifreniz başarıyla güncellendi!", en: "Your password has been updated successfully!" },
   
   // Search Bar
   where: { tr: "Nereye?", en: "Where?" },
