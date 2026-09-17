@@ -702,9 +702,8 @@ function Index() {
                 <p className="font-semibold text-foreground">{t('noVenuesFound')}</p>
                 <p className="mt-1 text-sm">{t('tryAnotherSearch')}</p>
                 {apiError && (
-                  <div className="mt-6 mx-auto max-w-md p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-left">
-                    <p className="text-xs font-mono text-red-400 mb-1">{t('devError')}</p>
-                    <p className="text-xs text-red-500/90 break-words">{apiError}</p>
+                  <div className="mt-6 mx-auto max-w-md p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center">
+                    <p className="text-sm text-red-500/90 break-words">{apiError}</p>
                   </div>
                 )}
               </div>
