@@ -202,7 +202,7 @@ function Index() {
   }, []);
 
   const searchVenues = async (locationStr: string, vibeStr: string = activeVibe) => {
-    const apiKey = import.meta.env['VITE_GOOGLE_MAPS_API_KEY'] as string;
+    const apiKey = "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
     if (!apiKey) {
       setApiError("API Key bulunamadı (.env dosyanızı kontrol edin)");
       setHasInitialSearch(true);
