@@ -49,6 +49,7 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import logoImg from "../assets/logo.png";
 import { Country, State, City as CSCCity } from "country-state-city";
+import { fetchVenuesFromServer } from "../api/placesApi";
 import { useLanguage, type Language } from "../contexts/LanguageContext";
 import { LoginModal } from "@/components/LoginModal";
 
@@ -201,7 +202,7 @@ function Index() {
   }, []);
 
   const searchVenues = async (locationStr: string, vibeStr: string = activeVibe) => {
-    const apiKey = import.meta.env['VITE_GOOGLE_PLACES_API_KEY'] as string;
+    const apiKey = import.meta.env['VITE_GOOGLE_MAPS_API_KEY'] as string;
     if (!apiKey) {
       setApiError("API Key bulunamadı (.env dosyanızı kontrol edin)");
       setHasInitialSearch(true);
@@ -213,85 +214,33 @@ function Index() {
     setShowDropdown(false);
     setApiError(null);
     
-    const fetchFromGoogle = async (query: string, bbox: string[] | null) => {
-      const body: any = {
-        textQuery: query,
-        maxResultCount: 8,
-        languageCode: language,
-      };
-
-      if (bbox && bbox.length === 4) {
-        body.locationRestriction = {
-          rectangle: {
-            low: { latitude: parseFloat(bbox[0] as string), longitude: parseFloat(bbox[2] as string) },
-            high: { latitude: parseFloat(bbox[1] as string), longitude: parseFloat(bbox[3] as string) }
-          }
-        };
-      }
-
-      const res = await fetch(`https://places.googleapis.com/v1/places:searchText`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.priceLevel,places.rating,places.userRatingCount,places.photos,places.currentOpeningHours,places.internationalPhoneNumber,places.types,places.addressComponents",
-        },
-        body: JSON.stringify(body),
-      });
-      return res.json();
-    };
-
     try {
-      // Ensure we have a bounding box for strict filtering
-      let currentBbox = activeRegionBbox;
-      if (!currentBbox || locationStr !== activeRegion) {
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationStr)}&format=json&limit=1`, {
-            headers: {
-              "User-Agent": "ChillSpot AI"
-            }
-          });
-          const data = await res.json();
-          if (data && data[0] && data[0].boundingbox) {
-            currentBbox = data[0].boundingbox;
-            setActiveRegionBbox(currentBbox);
-          }
-        } catch (e) {
-          console.warn("Could not fetch bounding box", e);
-        }
-      }
-
-      // First attempt: Search with vibe
-      // We use a shorter location string to avoid confusing Google when providing a bounding box
-      const splitLoc = locationStr.split(',');
-      const shortLocation = (splitLoc[0] || locationStr).trim();
-      const queryLoc = currentBbox ? shortLocation : locationStr;
-      
-      
       const vibeObj = vibes.find(v => v.id === vibeStr);
       const intentQuery = vibeObj?.searchQuery || vibeStr;
 
-      let data = await fetchFromGoogle(`${intentQuery} in ${queryLoc}`, currentBbox);
+      const result = await fetchVenuesFromServer({
+        data: {
+          locationStr,
+          vibeStr,
+          language,
+          activeRegionBbox,
+          intentQuery
+        }
+      });
       
-      if (data.error) {
-        const details = data.error.details ? JSON.stringify(data.error.details) : '';
-        setApiError(`API Hatası: ${data.error.message || JSON.stringify(data.error)} | Detay: ${details} | Key: ${apiKey.substring(0, 12)}...`);
+      if (result.error) {
+        console.error("ChillSpot API İletişim Hatası:", result.error);
+        setApiError("Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
         setVenues([]);
         setIsSearching(false);
         return;
       }
 
-      // Fallback attempt: If no places found, try a broader search
-      if (!data.places || data.places.length === 0) {
-        data = await fetchFromGoogle(`best places in ${queryLoc}`, currentBbox);
+      if (result.newBbox && result.newBbox !== activeRegionBbox) {
+        setActiveRegionBbox(result.newBbox);
       }
       
-      if (data.error) {
-        setApiError(`${t('apiErrorFallback')}${data.error.message || JSON.stringify(data.error)}`);
-        setVenues([]);
-        setIsSearching(false);
-        return;
-      }
+      const data = result.data;
       
       if (data.places && data.places.length > 0) {
         const newVenues = data.places.map((place: any, index: number) => {
@@ -372,12 +321,12 @@ function Index() {
           });
           
       } else {
-        setApiError(t('zeroResults'));
+        setApiError("Arama sonuçları bulunamadı.");
         setVenues([]);
       }
     } catch (e: any) {
-      console.error("Search error:", e);
-      setApiError(`${t('networkError')}${e.message}`);
+      console.error("ChillSpot API İletişim Hatası:", e);
+      setApiError("Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
       setVenues([]);
     } finally {
       setIsSearching(false);
