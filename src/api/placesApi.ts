@@ -84,8 +84,9 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
           userRatingCount: place.user_ratings_total || 0,
           priceLevel: mappedPrice,
           types: place.types || [],
-          // To avoid breaking the frontend v1 media URLs, we leave photos empty to trigger the safe Unsplash fallback for now.
-          photos: [] 
+          photos: place.photos ? place.photos.map((p: any) => ({
+             photo_reference: p.photo_reference
+          })) : []
         };
       });
 

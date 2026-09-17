@@ -246,7 +246,11 @@ function Index() {
         const newVenues = data.places.map((place: any, index: number) => {
           let image = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"; // fallback
           if (place.photos && place.photos.length > 0) {
-            image = `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=800&maxWidthPx=1280&key=${apiKey}`;
+            if (place.photos[0].photo_reference) {
+               image = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}`;
+            } else if (place.photos[0].name) {
+               image = `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=800&maxWidthPx=1280&key=${apiKey}`;
+            }
           }
           
           const icon = vibes.find(v => v.id === vibeStr)?.icon || Coffee;
