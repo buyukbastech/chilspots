@@ -73,20 +73,29 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     let lng = 0;
     let currentBbox = activeRegionBbox;
 
-    // Strict Geocoding
+    // Strict Geocoding using Google Geocoding API
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationStr)}&format=json&limit=1`, {
-        headers: { "User-Agent": "ChillSpot AI Server" }
-      });
-      const osmMata = await res.json();
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationStr)}&key=${googleApiKey}`);
+      const geocodeData = await res.json();
       
-      if (osmMata && osmMata[0]) {
-        if (!currentBbox) currentBbox = osmMata[0].boundingbox;
-        lat = parseFloat(osmMata[0].lat);
-        lng = parseFloat(osmMata[0].lon);
+      if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
+        const location = geocodeData.results[0].geometry.location;
+        const viewport = geocodeData.results[0].geometry.viewport;
+        
+        lat = location.lat;
+        lng = location.lng;
+        
+        if (!currentBbox && viewport) {
+          currentBbox = [
+            viewport.southwest.lat.toString(),
+            viewport.northeast.lat.toString(),
+            viewport.southwest.lng.toString(),
+            viewport.northeast.lng.toString()
+          ];
+        }
       } else {
-        console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr);
-        return { error: { message: "Lokasyon bulunamadı. Lütfen geçerli bir şehir girin." }, status: 400 };
+        console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr, geocodeData.status);
+        return { error: { message: "Lokasyon bulunamadı. Lütfen haritadan geçerli bir konum seçin." }, status: 400 };
       }
     } catch (e) {
       console.warn("[GEOCODING] Network error during geocoding:", e);

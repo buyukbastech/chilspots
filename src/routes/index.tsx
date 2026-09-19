@@ -230,7 +230,7 @@ function Index() {
       
       if (result.error) {
         console.error("ChillSpot API İletişim Hatası:", result.error);
-        setApiError("Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
+        setApiError(result.error.message || "Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
         setVenues([]);
         setIsSearching(false);
         return;
@@ -334,8 +334,8 @@ function Index() {
         setVenues([]);
       }
     } catch (e: any) {
-      console.error("ChillSpot API İletişim Hatası:", e);
-      setApiError("Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
+      console.error(e);
+      setApiError(e.message || "Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
       setVenues([]);
     } finally {
       setIsSearching(false);
