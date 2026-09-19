@@ -767,7 +767,7 @@ function Index() {
               <p className="mt-1 text-xs text-muted-foreground">{t('last8Mins')}</p>
             </div>
 
-            {selectedVenue && <div className="absolute bottom-6 left-5 right-5 z-20 flex items-center gap-3 rounded-2xl border border-primary/30 bg-background/90 p-3 shadow-glow backdrop-blur-xl">
+            {selectedVenue && <div key={selectedVenue.id} className="absolute bottom-6 left-5 right-5 z-20 flex items-center gap-3 rounded-2xl border border-primary/30 bg-background/90 p-3 shadow-glow backdrop-blur-xl">
               <img 
                 src={selectedVenue.image === "placeholder_ref" || selectedVenue.image === "placeholder_name" ? "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" : selectedVenue.image} 
                 alt="" 
