@@ -81,7 +81,7 @@ const vibes = [
 ];
 
 type Venue = {
-  id: number;
+  id: string | number;
   name: string;
   area: string;
   match: number;
@@ -264,7 +264,7 @@ function Index() {
           let price = place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ? "₺₺₺" : (place.priceLevel === "PRICE_LEVEL_MODERATE" ? "₺₺" : (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE" ? "₺" : ""));
           
           return {
-            id: 1000 + index,
+            id: place.id || String(1000 + index),
             name: place.displayName?.text || t('unknownVenue'),
             area: place.formattedAddress?.split(',')[0] || locationStr,
             match: Math.floor(Math.random() * 20) + 80, // Random 80-99
