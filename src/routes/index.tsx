@@ -459,7 +459,7 @@ function Index() {
       )}
       
       <main className="min-h-screen bg-background text-foreground selection:bg-primary/30">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-2xl">
+      <header className="lg:sticky lg:top-0 z-50 border-b border-border bg-background/90 backdrop-blur-2xl">
         <div className="grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 pt-3 pb-2 lg:py-0 lg:grid-cols-[1fr_auto_1fr] lg:px-7">
           <a href="#top" className="flex min-w-0 items-center gap-3 lg:justify-start" aria-label="ChillSpot AI ana sayfa" onClick={() => { setActiveRegion("İstanbul"); searchVenues("İstanbul"); }}>
             <img src={logoImg} alt="ChillSpot AI Logo" className="h-10 w-10 shrink-0 object-contain drop-shadow-glow" />
