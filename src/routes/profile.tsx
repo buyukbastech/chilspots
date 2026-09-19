@@ -262,6 +262,7 @@ function ProfilePage() {
   };
 
   const handleRemoveFavorite = (e: React.MouseEvent, favId: number) => {
+    e.preventDefault();
     e.stopPropagation();
     setFavoriteToDelete(favId);
   };
@@ -669,34 +670,6 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* Delete Favorite Confirmation Modal */}
-        {favoriteToDelete !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-card border border-border p-6 md:p-8 rounded-3xl w-full max-w-sm shadow-2xl relative">
-              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
-                <Heart className="w-8 h-8 text-red-500 fill-red-500" />
-              </div>
-              <h3 className="text-xl font-bold font-display text-center mb-2">Favorilerden Çıkar</h3>
-              <p className="text-muted-foreground text-center mb-8">Bu mekanı favorilerinizden çıkarmak istediğinize emin misiniz?</p>
-              
-              <div className="flex flex-col gap-3">
-                <Button 
-                  variant="destructive" 
-                  className="w-full rounded-xl py-6 text-base font-bold shadow-lg"
-                  onClick={executeRemoveFavorite}
-                >
-                  Evet, Çıkar
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full rounded-xl py-6 text-base text-muted-foreground hover:text-foreground hover:bg-white/10"
-                  onClick={() => setFavoriteToDelete(null)}
-                >
-                  {t('cancel')}
-                </Button>
-              </div>
-            </div>
-          </div>
         )}
 
       </div>
@@ -927,6 +900,36 @@ function ProfilePage() {
           </TabsContent>
         </Tabs>
         
+        {/* Delete Favorite Confirmation Modal */}
+        {favoriteToDelete !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-card border border-border p-6 md:p-8 rounded-3xl w-full max-w-sm shadow-2xl relative">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+                <Heart className="w-8 h-8 text-red-500 fill-red-500" />
+              </div>
+              <h3 className="text-xl font-bold font-display text-center mb-2">Favorilerden Çıkar</h3>
+              <p className="text-muted-foreground text-center mb-8">Bu mekanı favorilerinizden çıkarmak istediğinize emin misiniz?</p>
+              
+              <div className="flex flex-col gap-3">
+                <Button 
+                  variant="destructive" 
+                  className="w-full rounded-xl py-6 text-base font-bold shadow-lg"
+                  onClick={executeRemoveFavorite}
+                >
+                  Evet, Çıkar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full rounded-xl py-6 text-base text-muted-foreground hover:text-foreground hover:bg-white/10"
+                  onClick={() => setFavoriteToDelete(null)}
+                >
+                  {t('cancel')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
