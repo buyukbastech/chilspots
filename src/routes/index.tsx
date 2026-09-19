@@ -756,7 +756,11 @@ function Index() {
         </section>
 
         {hasInitialSearch && (
-          <section className={cn("relative h-[620px] lg:sticky lg:top-[137px] lg:h-[calc(100vh-137px)] lg:w-[44%] overflow-hidden border-l border-border bg-surface-raised lg:block", !mobileMap && "hidden lg:block")} aria-label="Canlı vibe haritası">
+          <section className={cn(
+            "overflow-hidden border-l border-border bg-surface-raised",
+            "lg:block lg:relative lg:sticky lg:top-[137px] lg:h-[calc(100vh-137px)] lg:w-[44%]",
+            mobileMap ? "fixed inset-0 z-40 h-[100dvh] w-full block" : "hidden"
+          )} aria-label="Canlı vibe haritası">
             <VibeMap selected={selected} onSelect={setSelected} visibleVenues={visibleVenues} />
             <div className="absolute left-5 top-5 z-20 rounded-2xl border border-border bg-background/80 p-4 backdrop-blur-xl">
               <div className="flex items-center gap-2 text-sm font-bold"><span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" /><span className="relative h-2.5 w-2.5 rounded-full bg-primary" /></span>{t('liveRadar')}</div>
@@ -878,6 +882,15 @@ function VibeMap({ selected, onSelect, visibleVenues }: { selected: number; onSe
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapRef.current);
     }
+  }, [L]);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !mapRef.current) return;
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+    });
+    observer.observe(mapContainerRef.current);
+    return () => observer.disconnect();
   }, [L]);
 
   useEffect(() => {
