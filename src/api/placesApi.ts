@@ -60,46 +60,52 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     language: string;
     activeRegionBbox: string[] | null;
     intentQuery: string;
+    lat?: number;
+    lng?: number;
   }) => data)
   .handler(async ({ data }) => {
     const { locationStr, intentQuery, activeRegionBbox } = data;
+    const providedLat = data.lat;
+    const providedLng = data.lng;
     const googleApiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
 
     if (!googleApiKey) {
       return { error: { message: "API Key bulunamadı (.env dosyanızı kontrol edin)" } };
     }
 
-    let lat = 0;
-    let lng = 0;
+    let lat = providedLat || 0;
+    let lng = providedLng || 0;
     let currentBbox = activeRegionBbox;
 
-    // Strict Geocoding using Google Geocoding API
-    try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationStr)}&key=${googleApiKey}`);
-      const geocodeData = await res.json();
-      
-      if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
-        const location = geocodeData.results[0].geometry.location;
-        const viewport = geocodeData.results[0].geometry.viewport;
+    // Strict Geocoding using Google Geocoding API if coordinates are not provided
+    if (!providedLat || !providedLng) {
+      try {
+        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationStr)}&key=${googleApiKey}`);
+        const geocodeData = await res.json();
         
-        lat = location.lat;
-        lng = location.lng;
-        
-        if (!currentBbox && viewport) {
-          currentBbox = [
-            viewport.southwest.lat.toString(),
-            viewport.northeast.lat.toString(),
-            viewport.southwest.lng.toString(),
-            viewport.northeast.lng.toString()
-          ];
+        if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
+          const location = geocodeData.results[0].geometry.location;
+          const viewport = geocodeData.results[0].geometry.viewport;
+          
+          lat = location.lat;
+          lng = location.lng;
+          
+          if (!currentBbox && viewport) {
+            currentBbox = [
+              viewport.southwest.lat.toString(),
+              viewport.northeast.lat.toString(),
+              viewport.southwest.lng.toString(),
+              viewport.northeast.lng.toString()
+            ];
+          }
+        } else {
+          console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr, geocodeData.status);
+          return { error: { message: "Lokasyon bulunamadı. Lütfen haritadan geçerli bir konum seçin." }, status: 400 };
         }
-      } else {
-        console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr, geocodeData.status);
-        return { error: { message: "Lokasyon bulunamadı. Lütfen haritadan geçerli bir konum seçin." }, status: 400 };
+      } catch (e) {
+        console.warn("[GEOCODING] Network error during geocoding:", e);
+        return { error: { message: "Lokasyon servisi geçici olarak kullanılamıyor." }, status: 500 };
       }
-    } catch (e) {
-      console.warn("[GEOCODING] Network error during geocoding:", e);
-      return { error: { message: "Lokasyon servisi geçici olarak kullanılamıyor." }, status: 500 };
     }
 
     // Classic Google Places API (Nearby Search)

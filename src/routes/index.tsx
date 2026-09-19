@@ -138,6 +138,8 @@ function Index() {
   const [activeVibe, setActiveVibe] = useSessionStorage("chillspot_activeVibe", "Sakin");
   const [activeRegion, setActiveRegion] = useSessionStorage("chillspot_activeRegion", "İstanbul");
   const [activeRegionBbox, setActiveRegionBbox] = useState<string[] | null>(null);
+  const [activeRegionLat, setActiveRegionLat] = useSessionStorage<number | undefined>("chillspot_activeRegionLat", undefined);
+  const [activeRegionLng, setActiveRegionLng] = useSessionStorage<number | undefined>("chillspot_activeRegionLng", undefined);
   
   // Hierarchical Location State
   const [selectedCountry, setSelectedCountry] = useSessionStorage("chillspot_selectedCountry", "TR");
@@ -201,7 +203,7 @@ function Index() {
     return () => { clearTimeout(timer1); clearTimeout(timer2); };
   }, []);
 
-  const searchVenues = async (locationStr: string, vibeStr: string = activeVibe) => {
+  const searchVenues = async (locationStr: string, vibeStr: string = activeVibe, lat?: number, lng?: number) => {
     const apiKey = "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
     if (!apiKey) {
       setApiError("API Key bulunamadı (.env dosyanızı kontrol edin)");
@@ -224,7 +226,9 @@ function Index() {
           vibeStr,
           language,
           activeRegionBbox,
-          intentQuery
+          intentQuery,
+          lat,
+          lng
         }
       });
       
@@ -343,10 +347,10 @@ function Index() {
   };
 
   useEffect(() => {
-    if (!hasInitialSearch) {
-      searchVenues(activeRegion, activeVibe);
+    if (!hasInitialSearch && session !== undefined) {
+      searchVenues(activeRegion, activeVibe, activeRegionLat, activeRegionLng);
     }
-  }, [hasInitialSearch]);
+  }, [hasInitialSearch, session]);
 
   useEffect(() => {
     if (hasInitialSearch) {
@@ -550,9 +554,19 @@ function Index() {
                         onChange={(e) => {
                           const val = e.target.value;
                           setSelectedCity(val);
+                          const cityObj = cities.find(c => c.name === val);
                           const cName = Country.getCountryByCode(selectedCountry)?.name || "";
                           const sName = State.getStateByCodeAndCountry(selectedState, selectedCountry)?.name || "";
                           setActiveRegion(`${val}, ${sName}, ${cName}`);
+                          
+                          if (cityObj) {
+                            setActiveRegionLat(parseFloat(cityObj.latitude || "0"));
+                            setActiveRegionLng(parseFloat(cityObj.longitude || "0"));
+                          } else {
+                            setActiveRegionLat(undefined);
+                            setActiveRegionLng(undefined);
+                          }
+                          
                           setActiveRegionBbox(null);
                           setLocationOpen(false); // Close popover when fully selected
                         }}
@@ -587,7 +601,7 @@ function Index() {
                         return;
                       }
                       setActiveVibe(v.id);
-                      searchVenues(activeRegion, v.id);
+                      searchVenues(activeRegion, v.id, activeRegionLat, activeRegionLng);
                     }}
                     className={cn("gap-2 cursor-pointer font-medium rounded-lg py-2 my-1", activeVibe === v.id && "bg-primary/20 text-primary focus:bg-primary/20 focus:text-primary")}
                   >
@@ -633,7 +647,7 @@ function Index() {
                   setIsLoginModalOpen(true);
                   return;
                 }
-                searchVenues(activeRegion, activeVibe);
+                searchVenues(activeRegion, activeVibe, activeRegionLat, activeRegionLng);
               }}
             >
               <Search className="h-5 w-5" />
