@@ -49,7 +49,7 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import logoImg from "../assets/logo.png";
 import { Country, State, City as CSCCity } from "country-state-city";
-import { fetchVenuesFromServer } from "../api/placesApi";
+import { getPhotoUrlFromServer, fetchVenuesFromServer } from "../api/placesApi";
 import { useLanguage, type Language } from "../contexts/LanguageContext";
 import { LoginModal } from "@/components/LoginModal";
 
@@ -245,11 +245,14 @@ function Index() {
       if (data.places && data.places.length > 0) {
         const newVenues = data.places.map((place: any, index: number) => {
           let image = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"; // fallback
+          let photo_name = "";
           if (place.photos && place.photos.length > 0) {
             if (place.photos[0].photo_reference) {
-               image = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}`;
+               photo_name = place.photos[0].photo_reference;
+               image = "placeholder_ref";
             } else if (place.photos[0].name) {
-               image = `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=800&maxWidthPx=1280&key=${apiKey}`;
+               photo_name = place.photos[0].name;
+               image = "placeholder_name";
             }
           }
           
@@ -265,6 +268,7 @@ function Index() {
             price: price || t('priceNotSet'),
             distance: t('realLocation'),
             image,
+            photo_name,
             icon,
             lat: place.location?.latitude || 41.0,
             lng: place.location?.longitude || 29.0,
@@ -286,7 +290,8 @@ function Index() {
         const dbVenues = data.places.map((place: any) => {
           let image_url = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80";
           if (place.photos && place.photos.length > 0) {
-            image_url = `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=800&maxWidthPx=1280&key=${apiKey}`;
+             // For supabase, we don't store the API key, just the relative ref or a generic string.
+             image_url = `photo:${place.photos[0].name || place.photos[0].photo_reference || ''}`;
           }
           let price_level = place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ? "₺₺₺" : (place.priceLevel === "PRICE_LEVEL_MODERATE" ? "₺₺" : (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE" ? "₺" : ""));
           
@@ -401,7 +406,7 @@ function Index() {
           google_place_id: venue.placeId,
           name: venue.name,
           address: venue.area,
-          image_url: venue.image,
+          image_url: (venue.image === "placeholder_ref" || venue.image === "placeholder_name") ? (venue as any).photo_name : venue.image,
           rating: venue.match / 20, // approximate match to 5-star scale
           lat: venue.lat,
           lng: venue.lng
@@ -715,7 +720,21 @@ function Index() {
               visibleVenues.map((venue, index) => (
                 <article key={venue.id} onMouseEnter={() => setSelected(venue.id)} onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: venue.placeId } })} className={cn("group animate-rise cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-card transition duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow", selected === venue.id ? "border-primary/60" : "border-border")} style={{ animationDelay: `${index * 70}ms` }}>
                   <div className="relative aspect-[16/11] overflow-hidden">
-                    <img src={venue.image} alt={`${venue.name} mekan atmosferi`} width={1280} height={800} loading={index === 0 ? "eager" : "lazy"} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                    <img 
+                      src={venue.image === "placeholder_ref" || venue.image === "placeholder_name" ? "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" : venue.image} 
+                      alt={`${venue.name} mekan atmosferi`} 
+                      width={1280} 
+                      height={800} 
+                      loading={index === 0 ? "eager" : "lazy"} 
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      ref={(el) => {
+                        if (el && (venue.image === "placeholder_ref" || venue.image === "placeholder_name") && !el.dataset['loadedUrl']) {
+                          el.dataset['loadedUrl'] = "fetching";
+                          getPhotoUrlFromServer({ data: { photoName: (venue as any).photo_name, maxHeight: 800, maxWidth: 1280 } })
+                            .then((res) => { if (res?.url) el.src = res.url; });
+                        }
+                      }}
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-background/20" />
                     <span className="absolute left-3 top-3 rounded-full border border-primary/30 bg-background/80 px-3 py-1.5 text-xs font-bold text-primary backdrop-blur-xl"><Sparkles className="mr-1 inline h-3 w-3" />%{venue.match} {t('match')}</span>
                     <Button variant="glass" size="icon" aria-label={`${venue.name} favorilere ekle`} onClick={(event) => { event.stopPropagation(); toggleFavorite(venue); }} className={cn("absolute right-3 top-3 rounded-full", favorites.includes(venue.placeId) && "bg-primary text-primary-foreground")}><Heart className={cn(favorites.includes(venue.placeId) && "fill-current")} /></Button>
@@ -745,7 +764,21 @@ function Index() {
             </div>
 
             {selectedVenue && <div className="absolute bottom-6 left-5 right-5 z-20 flex items-center gap-3 rounded-2xl border border-primary/30 bg-background/90 p-3 shadow-glow backdrop-blur-xl">
-              <img src={selectedVenue.image} alt="" width={96} height={96} className="h-16 w-16 shrink-0 rounded-xl object-cover cursor-pointer" onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: selectedVenue.placeId } })} />
+              <img 
+                src={selectedVenue.image === "placeholder_ref" || selectedVenue.image === "placeholder_name" ? "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" : selectedVenue.image} 
+                alt="" 
+                width={96} 
+                height={96} 
+                className="h-16 w-16 shrink-0 rounded-xl object-cover cursor-pointer" 
+                onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: selectedVenue.placeId } })} 
+                ref={(el) => {
+                  if (el && (selectedVenue.image === "placeholder_ref" || selectedVenue.image === "placeholder_name") && !el.dataset['loadedUrl']) {
+                    el.dataset['loadedUrl'] = "fetching";
+                    getPhotoUrlFromServer({ data: { photoName: (selectedVenue as any).photo_name, maxHeight: 96, maxWidth: 96 } })
+                      .then((res) => { if (res?.url) el.src = res.url; });
+                  }
+                }}
+              />
               <div className="min-w-0 flex-1 cursor-pointer" onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: selectedVenue.placeId } })}>
                 <p className="text-xs font-bold text-primary">%{selectedVenue.match} {t('match').toUpperCase()}</p>
                 <h3 className="truncate font-display font-semibold">{selectedVenue.name}</h3>

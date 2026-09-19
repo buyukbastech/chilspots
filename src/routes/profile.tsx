@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { getPhotoUrlFromServer } from "@/api/placesApi";
 import { Heart, MessageSquare, MapPin, ArrowLeft, Star, LogOut, Pencil, Loader2, Sparkles, TrendingUp, Award, Flame, Store, Building2, FileText, Hash, ImagePlus, X, Trash2, Globe, Map, Compass } from "lucide-react";
 import { Country, State, City } from "country-state-city";
 
@@ -31,6 +32,9 @@ function ProfilePage() {
   
   // Photo Delete Modal State
   const [photoToDelete, setPhotoToDelete] = useState<number | null>(null);
+
+  // Favorite Delete Modal State
+  const [favoriteToDelete, setFavoriteToDelete] = useState<number | null>(null);
 
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -179,12 +183,12 @@ function ProfilePage() {
         const fileName = `${session.user.id}-venue-${Date.now()}-${i}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('avatars')
+          .from('venues')
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        const { data } = supabase.storage.from('venues').getPublicUrl(fileName);
         uploadedUrls.push(data.publicUrl);
       }
 
@@ -226,9 +230,9 @@ function ProfilePage() {
       
       // Attempt to delete from storage if possible
       try {
-        const fileName = imageToRemove.split('/avatars/')[1];
+        const fileName = imageToRemove.split('/venues/')[1];
         if (fileName) {
-          await supabase.storage.from('avatars').remove([fileName]);
+          await supabase.storage.from('venues').remove([fileName]);
         }
       } catch (e) {
         console.warn("Storage delete failed, proceeding with DB update", e);
@@ -254,6 +258,31 @@ function ProfilePage() {
       console.error("Fotoğraf silinirken hata oluştu:", error);
       alert("Fotoğraf silinirken bir hata oluştu.");
       setPhotoToDelete(null);
+    }
+  };
+
+  const handleRemoveFavorite = (e: React.MouseEvent, favId: number) => {
+    e.stopPropagation();
+    setFavoriteToDelete(favId);
+  };
+
+  const executeRemoveFavorite = async () => {
+    if (favoriteToDelete === null) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_favorites')
+        .delete()
+        .eq('id', favoriteToDelete)
+        .eq('user_id', session?.user?.id);
+        
+      if (error) throw error;
+      
+      setFavorites(prev => prev.filter(f => f.id !== favoriteToDelete));
+      setFavoriteToDelete(null);
+    } catch (err: any) {
+      console.error("Favori silinirken hata:", err.message);
+      alert("Favori silinemedi: " + err.message);
     }
   };
 
@@ -640,6 +669,36 @@ function ProfilePage() {
           </div>
         )}
 
+        {/* Delete Favorite Confirmation Modal */}
+        {favoriteToDelete !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-card border border-border p-6 md:p-8 rounded-3xl w-full max-w-sm shadow-2xl relative">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+                <Heart className="w-8 h-8 text-red-500 fill-red-500" />
+              </div>
+              <h3 className="text-xl font-bold font-display text-center mb-2">Favorilerden Çıkar</h3>
+              <p className="text-muted-foreground text-center mb-8">Bu mekanı favorilerinizden çıkarmak istediğinize emin misiniz?</p>
+              
+              <div className="flex flex-col gap-3">
+                <Button 
+                  variant="destructive" 
+                  className="w-full rounded-xl py-6 text-base font-bold shadow-lg"
+                  onClick={executeRemoveFavorite}
+                >
+                  Evet, Çıkar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full rounded-xl py-6 text-base text-muted-foreground hover:text-foreground hover:bg-white/10"
+                  onClick={() => setFavoriteToDelete(null)}
+                >
+                  {t('cancel')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   }
@@ -797,7 +856,27 @@ function ProfilePage() {
                 {favorites.map((fav) => (
                   <div key={fav.id} className="glass-card rounded-2xl overflow-hidden border border-border flex flex-col cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: fav.google_place_id } })}>
                     <div className="h-32 bg-accent/50 relative">
-                      <img src={fav.venues?.image_url} alt={fav.venues?.name} className="w-full h-full object-cover opacity-80" />
+                      <img 
+                        src={fav.venues?.image_url?.startsWith('http') ? fav.venues?.image_url : "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"} 
+                        alt={fav.venues?.name} 
+                        className="w-full h-full object-cover opacity-80"
+                        ref={(el) => {
+                          if (el && fav.venues?.image_url && !fav.venues?.image_url.startsWith('http') && fav.venues?.image_url !== 'placeholder_ref' && fav.venues?.image_url !== 'placeholder_name' && !el.dataset['loadedUrl']) {
+                            el.dataset['loadedUrl'] = "fetching";
+                            getPhotoUrlFromServer({ data: { photoName: fav.venues?.image_url, maxHeight: 400, maxWidth: 600 } })
+                              .then((res) => { if (res?.url) el.src = res.url; });
+                          }
+                        }}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute top-2 left-2 h-8 w-8 rounded-full bg-background/60 backdrop-blur-md hover:bg-destructive hover:text-destructive-foreground text-primary/80 transition-colors z-10"
+                        onClick={(e) => handleRemoveFavorite(e, fav.id)}
+                        aria-label="Favorilerden çıkar"
+                      >
+                        <Heart className="h-4 w-4 fill-current" />
+                      </Button>
                       <div className="absolute top-2 right-2 bg-background/60 backdrop-blur-md px-2 py-1 rounded-full flex items-center text-xs font-bold text-yellow-400">
                         <Star className="w-3 h-3 fill-current mr-1" /> {fav.venues?.rating}
                       </div>

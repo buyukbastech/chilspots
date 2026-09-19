@@ -1,5 +1,58 @@
 import { createServerFn } from '@tanstack/react-start';
 
+export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
+  .validator((data: { photoName: string; maxHeight?: number; maxWidth?: number }) => data)
+  .handler(async ({ data }) => {
+    const { photoName, maxHeight = 800, maxWidth = 1280 } = data;
+    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
+    if (!apiKey) return { url: null };
+
+    try {
+      let url = "";
+      if (photoName.includes('/')) {
+        url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&key=${apiKey}`;
+      } else {
+        url = `https://maps.googleapis.com/maps/api/place/photo?maxheight=${maxHeight}&maxwidth=${maxWidth}&photoreference=${photoName}&key=${apiKey}`;
+      }
+      const res = await fetch(url, { redirect: 'manual' });
+      
+      if (res.status === 301 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
+        return { url: res.headers.get('location') };
+      }
+      
+      // If no redirect, return null since we shouldn't expose the url with the API key directly
+      return { url: null };
+    } catch (e) {
+      return { url: null };
+    }
+  });
+
+export const fetchPlaceDetailsFromServer = createServerFn({ method: 'GET' })
+  .validator((data: { placeId: string; language: string }) => data)
+  .handler(async ({ data }) => {
+    const { placeId, language } = data;
+    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
+
+    if (!apiKey) {
+      return { error: "API Key bulunamadı" };
+    }
+
+    try {
+      const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=${language}`, {
+        method: "GET",
+        headers: {
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "id,displayName,formattedAddress,location,priceLevel,rating,userRatingCount,photos,currentOpeningHours,internationalPhoneNumber,websiteUri,reviews,editorialSummary,googleMapsUri"
+        }
+      });
+      if (!res.ok) throw new Error("Failed to fetch place details");
+      return await res.json();
+    } catch (e: any) {
+      console.error(e);
+      return { error: e.message };
+    }
+  });
+
 export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
   .validator((data: {
     locationStr: string;
@@ -10,7 +63,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
   }) => data)
   .handler(async ({ data }) => {
     const { locationStr, intentQuery, activeRegionBbox } = data;
-    const googleApiKey = "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
+    const googleApiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
 
     if (!googleApiKey) {
       return { error: { message: "API Key bulunamadı (.env dosyanızı kontrol edin)" } };

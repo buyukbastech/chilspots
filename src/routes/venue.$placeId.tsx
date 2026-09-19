@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "../contexts/LanguageContext";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/lib/supabase";
+import { fetchPlaceDetailsFromServer, getPhotoUrlFromServer } from "@/api/placesApi";
 
 export const Route = createFileRoute("/venue/$placeId")({
   component: VenueDetails,
@@ -134,21 +135,10 @@ function VenueDetails() {
     const fetchVenueDetails = async () => {
       try {
         setLoading(true);
-        const apiKey = import.meta.env['VITE_GOOGLE_PLACES_API_KEY'] as string;
-        if (!apiKey) {
-          setError("API Key bulunamadı.");
-          return;
-        }
+        // Use statically imported server function
+        const data = await fetchPlaceDetailsFromServer({ data: { placeId, language } });
 
-        const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=${language}`, {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": apiKey,
-            "X-Goog-FieldMask": "id,displayName,formattedAddress,location,priceLevel,rating,userRatingCount,photos,currentOpeningHours,internationalPhoneNumber,websiteUri,reviews,editorialSummary,googleMapsUri"
-          },
-        });
 
-        const data = await res.json();
         if (data.error) {
           setError(`API Hatası: ${data.error.message}`);
           return;
@@ -186,9 +176,18 @@ function VenueDetails() {
             }));
             
             
-            // Yorumları topluca ekle - ON CONFLICT IGNORE yapmamız lazım aslında, basitçe insert edeceğiz
-            // Ancak aynı google yorumunu tekrar tekrar eklememek için (şimdilik böyle kalabilir, ama supabase db hatası fırlatabilir, yoksayıyoruz)
-            await supabase.from('venue_reviews').insert(dbReviews).select('id');
+            // Yorumları topluca ekle - ON CONFLICT IGNORE yapmamız lazım
+            for (const review of dbReviews) {
+              const { data: existingReview } = await supabase.from('venue_reviews')
+                .select('id')
+                .eq('google_place_id', review.google_place_id)
+                .eq('author_name', review.author_name)
+                .single();
+              
+              if (!existingReview) {
+                await supabase.from('venue_reviews').insert(review);
+              }
+            }
           }
         } catch (dbErr) {
           console.error("Supabase'e detayları kaydederken hata oluştu:", dbErr);
@@ -353,6 +352,13 @@ function VenueDetails() {
                       src={photoUrl} 
                       alt={`Photo ${index + 1}`} 
                       className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+                      ref={(el) => {
+                        if (el && !el.dataset['loadedUrl']) {
+                          el.dataset['loadedUrl'] = "fetching";
+                          getPhotoUrlFromServer({ data: { photoName: photo.name, maxHeight: 800, maxWidth: 1280 } })
+                            .then((res) => { if (res?.url) el.src = res.url; });
+                        }
+                      }}
                     />
                     <div className="absolute inset-0 bg-black/0 transition-colors hover:bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100">
                       {index === 3 && venue.photos.length > 4 ? (
@@ -552,6 +558,13 @@ function VenueDetails() {
               alt={`Gallery image ${selectedPhotoIndex + 1}`}
               className="max-h-full max-w-full object-contain shadow-2xl select-none"
               onClick={(e) => e.stopPropagation()}
+              ref={(el) => {
+                if (el && el.dataset['currentIndex'] !== String(selectedPhotoIndex)) {
+                  el.dataset['currentIndex'] = String(selectedPhotoIndex);
+                  getPhotoUrlFromServer({ data: { photoName: venue.photos[selectedPhotoIndex].name, maxHeight: 1080, maxWidth: 1920 } })
+                    .then((res) => { if (res?.url) el.src = res.url; });
+                }
+              }}
             />
           </div>
         </div>
