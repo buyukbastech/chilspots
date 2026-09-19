@@ -60,8 +60,8 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     language: string;
     activeRegionBbox: string[] | null;
     intentQuery: string;
-    lat?: number;
-    lng?: number;
+    lat?: number | undefined;
+    lng?: number | undefined;
   }) => data)
   .handler(async ({ data }) => {
     const { locationStr, intentQuery, activeRegionBbox } = data;
