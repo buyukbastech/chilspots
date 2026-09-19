@@ -826,7 +826,14 @@ function ProfilePage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {favorites.map((fav) => (
-                  <div key={fav.id} className="glass-card rounded-2xl overflow-hidden border border-border flex flex-col cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: fav.google_place_id } })}>
+                  <div 
+                    key={fav.id} 
+                    className="glass-card rounded-2xl overflow-hidden border border-border flex flex-col cursor-pointer hover:border-primary/50 transition-colors" 
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('.fav-remove-btn')) return;
+                      navigate({ to: '/venue/$placeId', params: { placeId: fav.google_place_id } });
+                    }}
+                  >
                     <div className="h-32 bg-accent/50 relative">
                       <img 
                         src={fav.venues?.image_url?.startsWith('http') ? fav.venues?.image_url : "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"} 
@@ -840,15 +847,13 @@ function ProfilePage() {
                           }
                         }}
                       />
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute top-2 left-2 h-8 w-8 rounded-full bg-background/60 backdrop-blur-md hover:bg-destructive hover:text-destructive-foreground text-primary/80 transition-colors z-10"
+                      <button 
+                        className="fav-remove-btn absolute top-2 left-2 h-8 w-8 rounded-full bg-background/60 backdrop-blur-md hover:bg-destructive hover:text-destructive-foreground text-primary/80 transition-colors z-20 flex items-center justify-center cursor-pointer"
                         onClick={(e) => handleRemoveFavorite(e, fav.id)}
                         aria-label="Favorilerden çıkar"
                       >
-                        <Heart className="h-4 w-4 fill-current" />
-                      </Button>
+                        <Heart className="h-4 w-4 fill-current pointer-events-none" />
+                      </button>
                       <div className="absolute top-2 right-2 bg-background/60 backdrop-blur-md px-2 py-1 rounded-full flex items-center text-xs font-bold text-yellow-400">
                         <Star className="w-3 h-3 fill-current mr-1" /> {fav.venues?.rating}
                       </div>
