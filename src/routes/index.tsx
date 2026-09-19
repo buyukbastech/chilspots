@@ -153,7 +153,7 @@ function Index() {
   const cities = useMemo(() => (selectedCountry && selectedState) ? CSCCity.getCitiesOfState(selectedCountry, selectedState) : [], [selectedCountry, selectedState]);
 
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState<string | number>(0);
   const [favorites, setFavorites] = useState<string[]>([]);
   
   const [session, setSession] = useState<any>(null);
@@ -870,7 +870,7 @@ function FilterPart({ title, value, className }: { title: string; value: string;
   return <button className={cn("min-w-0 border-border px-5 text-left lg:border-r", className)}><span className="block text-[10px] font-bold uppercase text-muted-foreground">{title}</span><span className="block truncate text-sm font-semibold">{value}</span></button>;
 }
 
-function VibeMap({ selected, onSelect, visibleVenues }: { selected: number; onSelect: (id: number) => void; visibleVenues: Venue[] }) {
+function VibeMap({ selected, onSelect, visibleVenues }: { selected: string | number; onSelect: (id: string | number) => void; visibleVenues: Venue[] }) {
   const mapRef = useRef<LeafletType.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [L, setL] = useState<typeof LeafletType | null>(null);
