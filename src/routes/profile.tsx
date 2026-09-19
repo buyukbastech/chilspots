@@ -670,7 +670,6 @@ function ProfilePage() {
           </div>
         )}
 
-        )}
 
       </div>
     );
