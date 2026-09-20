@@ -108,7 +108,61 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
       }
     }
 
-    // Classic Google Places API (Nearby Search)
+    // ═══════════════════════════════════════════════════════════════
+    // CACHE LAYER: Check Supabase first before hitting Google API
+    // ═══════════════════════════════════════════════════════════════
+    const { supabaseServer } = await import('../lib/supabaseServer');
+    
+    const CACHE_TTL_HOURS = 24;
+    const CACHE_RADIUS = 0.045; // ~5km bounding box
+    const MIN_CACHED_RESULTS = 5;
+
+    if (supabaseServer) {
+      try {
+        const cutoffTime = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+        
+        const { data: cachedVenues, error: cacheError } = await supabaseServer
+          .from('venues')
+          .select('*')
+          .gte('lat', lat - CACHE_RADIUS)
+          .lte('lat', lat + CACHE_RADIUS)
+          .gte('lng', lng - CACHE_RADIUS)
+          .lte('lng', lng + CACHE_RADIUS)
+          .gte('updated_at', cutoffTime)
+          .limit(20);
+
+        if (!cacheError && cachedVenues && cachedVenues.length >= MIN_CACHED_RESULTS) {
+          console.log(`[CACHE HIT] ${cachedVenues.length} mekan Supabase cache'den getirildi (Google'a istek atılmadı)`);
+          
+          const cachedPlaces = cachedVenues.map((v: any) => ({
+            id: v.google_place_id,
+            displayName: { text: v.name },
+            formattedAddress: v.address || "",
+            location: { latitude: v.lat, longitude: v.lng },
+            rating: v.rating || 0,
+            userRatingCount: v.user_rating_count || 0,
+            priceLevel: v.price_level === "₺₺₺" ? "PRICE_LEVEL_EXPENSIVE" 
+                      : v.price_level === "₺₺" ? "PRICE_LEVEL_MODERATE"
+                      : v.price_level === "₺" ? "PRICE_LEVEL_INEXPENSIVE" 
+                      : "",
+            types: [],
+            photos: v.image_url && v.image_url.startsWith('photo:') 
+              ? [{ photo_reference: v.image_url.replace('photo:', '') }] 
+              : []
+          }));
+
+          return { data: { places: cachedPlaces }, newBbox: currentBbox, fromCache: true };
+        } else {
+          console.log(`[CACHE MISS] Cache'de yeterli sonuç yok (${cachedVenues?.length || 0} bulundu, ${MIN_CACHED_RESULTS} gerekli). Google'a soruluyor...`);
+        }
+      } catch (cacheErr) {
+        console.warn("[CACHE] Supabase cache sorgusu başarısız, Google'a devam ediliyor:", cacheErr);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // GOOGLE API: Only called if cache miss
+    // ═══════════════════════════════════════════════════════════════
     const fetchFromGoogleClassic = async (query: string, latitude: number, longitude: number) => {
       const params = new URLSearchParams({
         location: `${latitude},${longitude}`,
@@ -127,14 +181,11 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
       
       const json = await res.json();
       
-      // Handle Google API's internal error statuses (e.g., REQUEST_DENIED)
       if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
          throw { response: { data: json } };
       }
       
-      // Map Classic API "results" array to Frontend's expected V1 format
       const normalizedPlaces = (json.results || []).map((place: any) => {
-        
         let mappedPrice = "";
         if (place.price_level === 4 || place.price_level === 3) mappedPrice = "PRICE_LEVEL_EXPENSIVE";
         else if (place.price_level === 2) mappedPrice = "PRICE_LEVEL_MODERATE";
@@ -178,6 +229,47 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           continue;
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // STALE CACHE FALLBACK: If Google completely fails, show old data
+        // ═══════════════════════════════════════════════════════════
+        if (supabaseServer) {
+          try {
+            const { data: staleVenues } = await supabaseServer
+              .from('venues')
+              .select('*')
+              .gte('lat', lat - CACHE_RADIUS)
+              .lte('lat', lat + CACHE_RADIUS)
+              .gte('lng', lng - CACHE_RADIUS)
+              .lte('lng', lng + CACHE_RADIUS)
+              .limit(20);
+
+            if (staleVenues && staleVenues.length > 0) {
+              console.log(`[STALE CACHE] Google çöktü ama ${staleVenues.length} mekan eski cache'den getirildi`);
+              
+              const stalePlaces = staleVenues.map((v: any) => ({
+                id: v.google_place_id,
+                displayName: { text: v.name },
+                formattedAddress: v.address || "",
+                location: { latitude: v.lat, longitude: v.lng },
+                rating: v.rating || 0,
+                userRatingCount: v.user_rating_count || 0,
+                priceLevel: v.price_level === "₺₺₺" ? "PRICE_LEVEL_EXPENSIVE" 
+                          : v.price_level === "₺₺" ? "PRICE_LEVEL_MODERATE"
+                          : v.price_level === "₺" ? "PRICE_LEVEL_INEXPENSIVE" 
+                          : "",
+                types: [],
+                photos: v.image_url && v.image_url.startsWith('photo:') 
+                  ? [{ photo_reference: v.image_url.replace('photo:', '') }] 
+                  : []
+              }));
+
+              return { data: { places: stalePlaces }, newBbox: currentBbox, fromCache: true };
+            }
+          } catch (staleCacheErr) {
+            console.warn("[STALE CACHE] Eski cache sorgusu da başarısız:", staleCacheErr);
+          }
         }
         
         return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor. Lütfen birkaç saniye bekleyip tekrar deneyin." }, status: 500 };

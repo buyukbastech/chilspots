@@ -323,7 +323,8 @@ function Index() {
             vibe: vibeStr,
             country,
             state,
-            city
+            city,
+            updated_at: new Date().toISOString()
           };
         });
 
