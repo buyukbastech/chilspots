@@ -487,7 +487,7 @@ function Index() {
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-muted-foreground">{t('country')}</label>
                     <select 
-                      className="w-full bg-accent/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary"
                       value={selectedCountry}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -507,7 +507,7 @@ function Index() {
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-muted-foreground">{t('region')}</label>
                     <select 
-                      className="w-full bg-accent/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                      className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                       value={selectedState}
                       disabled={!selectedCountry || states.length === 0}
                       onChange={(e) => {
@@ -530,7 +530,7 @@ function Index() {
                     {selectedCountry && selectedState && cities.length === 0 ? (
                       <input
                         type="text"
-                        className="w-full bg-accent/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary"
                         placeholder={t('typeCityOptional')}
                         value={selectedCity}
                         onChange={(e) => {
@@ -549,7 +549,7 @@ function Index() {
                       />
                     ) : (
                       <select 
-                        className="w-full bg-accent/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                         value={selectedCity}
                         disabled={!selectedState}
                         onChange={(e) => {
