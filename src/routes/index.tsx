@@ -486,43 +486,59 @@ function Index() {
                 <div className="flex flex-col gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-muted-foreground">{t('country')}</label>
-                    <select 
-                      className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary"
-                      value={selectedCountry}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedCountry(val);
-                        setSelectedState("");
-                        setSelectedCity("");
-                        const cName = Country.getCountryByCode(val)?.name || "";
-                        setActiveRegion(cName);
-                        setActiveRegionBbox(null);
-                      }}
-                    >
-                      <option value="">{t('selectCountry')}</option>
-                      {countries.map(c => <option key={c.isoCode} value={c.isoCode}>{c.name}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select 
+                        className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                        value={selectedCountry}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedCountry(val);
+                          setSelectedState("");
+                          setSelectedCity("");
+                          const cName = Country.getCountryByCode(val)?.name || "";
+                          setActiveRegion(cName);
+                          setActiveRegionBbox(null);
+                        }}
+                      >
+                        <option value="">{t('selectCountry')}</option>
+                        {countries.map(c => <option key={c.isoCode} value={c.isoCode}>{c.name}</option>)}
+                      </select>
+                      <div className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 flex items-center justify-between pointer-events-none">
+                        <span className="truncate block pr-2">
+                          {selectedCountry ? Country.getCountryByCode(selectedCountry)?.name : t('selectCountry')}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-muted-foreground">{t('region')}</label>
-                    <select 
-                      className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                      value={selectedState}
-                      disabled={!selectedCountry || states.length === 0}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedState(val);
-                        setSelectedCity("");
-                        const cName = Country.getCountryByCode(selectedCountry)?.name || "";
-                        const sName = State.getStateByCodeAndCountry(val, selectedCountry)?.name || "";
-                        setActiveRegion(`${sName}, ${cName}`);
-                        setActiveRegionBbox(null);
-                      }}
-                    >
-                      <option value="">{t('selectRegion')}</option>
-                      {states.map(s => <option key={s.isoCode} value={s.isoCode}>{s.name}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select 
+                        className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer disabled:cursor-not-allowed"
+                        value={selectedState}
+                        disabled={!selectedCountry || states.length === 0}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedState(val);
+                          setSelectedCity("");
+                          const cName = Country.getCountryByCode(selectedCountry)?.name || "";
+                          const sName = State.getStateByCodeAndCountry(val, selectedCountry)?.name || "";
+                          setActiveRegion(`${sName}, ${cName}`);
+                          setActiveRegionBbox(null);
+                        }}
+                      >
+                        <option value="">{t('selectRegion')}</option>
+                        {states.map(s => <option key={s.isoCode} value={s.isoCode}>{s.name}</option>)}
+                      </select>
+                      <div className={`w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 flex items-center justify-between pointer-events-none ${(!selectedCountry || states.length === 0) ? 'opacity-50' : ''}`}>
+                        <span className="truncate block pr-2">
+                          {selectedState ? State.getStateByCodeAndCountry(selectedState, selectedCountry)?.name : t('selectRegion')}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -548,33 +564,41 @@ function Index() {
                         }}
                       />
                     ) : (
-                      <select 
-                        className="w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                        value={selectedCity}
-                        disabled={!selectedState}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSelectedCity(val);
-                          const cityObj = cities.find(c => c.name === val);
-                          const cName = Country.getCountryByCode(selectedCountry)?.name || "";
-                          const sName = State.getStateByCodeAndCountry(selectedState, selectedCountry)?.name || "";
-                          setActiveRegion(`${val}, ${sName}, ${cName}`);
-                          
-                          if (cityObj) {
-                            setActiveRegionLat(parseFloat(cityObj.latitude || "0"));
-                            setActiveRegionLng(parseFloat(cityObj.longitude || "0"));
-                          } else {
-                            setActiveRegionLat(undefined);
-                            setActiveRegionLng(undefined);
-                          }
-                          
-                          setActiveRegionBbox(null);
-                          setLocationOpen(false); // Close popover when fully selected
-                        }}
-                      >
-                        <option value="">{t('selectCity')}</option>
-                        {cities.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                      </select>
+                      <div className="relative">
+                        <select 
+                          className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer disabled:cursor-not-allowed"
+                          value={selectedCity}
+                          disabled={!selectedState}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSelectedCity(val);
+                            const cityObj = cities.find(c => c.name === val);
+                            const cName = Country.getCountryByCode(selectedCountry)?.name || "";
+                            const sName = State.getStateByCodeAndCountry(selectedState, selectedCountry)?.name || "";
+                            setActiveRegion(`${val}, ${sName}, ${cName}`);
+                            
+                            if (cityObj) {
+                              setActiveRegionLat(parseFloat(cityObj.latitude || "0"));
+                              setActiveRegionLng(parseFloat(cityObj.longitude || "0"));
+                            } else {
+                              setActiveRegionLat(undefined);
+                              setActiveRegionLng(undefined);
+                            }
+                            
+                            setActiveRegionBbox(null);
+                            setLocationOpen(false); // Close popover when fully selected
+                          }}
+                        >
+                          <option value="">{t('selectCity')}</option>
+                          {cities.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                        </select>
+                        <div className={`w-full bg-accent/50 border border-border rounded-md px-3 py-3 md:py-2 text-base md:text-sm min-h-[48px] md:min-h-0 flex items-center justify-between pointer-events-none ${!selectedState ? 'opacity-50' : ''}`}>
+                          <span className="truncate block pr-2">
+                            {selectedCity || t('selectCity')}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
