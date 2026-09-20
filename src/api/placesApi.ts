@@ -67,7 +67,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     const { locationStr, intentQuery, activeRegionBbox } = data;
     const providedLat = data.lat;
     const providedLng = data.lng;
-    const googleApiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
+    const googleApiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'] || "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
 
     if (!googleApiKey) {
       return { error: { message: "API Key bulunamadı (.env dosyanızı kontrol edin)" } };
