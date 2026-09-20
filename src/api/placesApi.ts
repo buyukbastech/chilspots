@@ -77,33 +77,53 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     let lng = providedLng || 0;
     let currentBbox = activeRegionBbox;
 
-    // Strict Geocoding using Google Geocoding API if coordinates are not provided
-    if (!providedLat || !providedLng) {
-      try {
-        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationStr)}&key=${googleApiKey}`);
-        const geocodeData = await res.json();
+    let geoCountry = "";
+    let geoState = "";
+    let geoCity = "";
+
+    // ═══════════════════════════════════════════════════════════════
+    // ZERO-TOLERANCE GEO-FILTERING: Always extract official boundaries
+    // ═══════════════════════════════════════════════════════════════
+    try {
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationStr)}&key=${googleApiKey}`);
+      const geocodeData = await res.json();
+      
+      if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
+        const result = geocodeData.results[0];
         
-        if (geocodeData.status === "OK" && geocodeData.results && geocodeData.results.length > 0) {
-          const location = geocodeData.results[0].geometry.location;
-          const viewport = geocodeData.results[0].geometry.viewport;
-          
-          lat = location.lat;
-          lng = location.lng;
-          
-          if (!currentBbox && viewport) {
+        // Use geocoded coordinates ONLY if frontend didn't provide specific map-click coordinates
+        if (!providedLat || !providedLng) {
+          lat = result.geometry.location.lat;
+          lng = result.geometry.location.lng;
+          if (!currentBbox && result.geometry.viewport) {
             currentBbox = [
-              viewport.southwest.lat.toString(),
-              viewport.northeast.lat.toString(),
-              viewport.southwest.lng.toString(),
-              viewport.northeast.lng.toString()
+              result.geometry.viewport.southwest.lat.toString(),
+              result.geometry.viewport.northeast.lat.toString(),
+              result.geometry.viewport.southwest.lng.toString(),
+              result.geometry.viewport.northeast.lng.toString()
             ];
           }
-        } else {
-          console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr, geocodeData.status);
+        }
+
+        // Extract strict geo-hierarchy for zero-tolerance filtering
+        if (result.address_components) {
+          result.address_components.forEach((comp: any) => {
+            if (comp.types.includes("country")) geoCountry = comp.long_name;
+            if (comp.types.includes("administrative_area_level_1")) geoState = comp.long_name;
+            if (comp.types.includes("locality") || comp.types.includes("administrative_area_level_2")) {
+              if (!geoCity) geoCity = comp.long_name;
+            }
+          });
+        }
+      } else {
+        console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr, geocodeData.status);
+        if (!providedLat || !providedLng) {
           return { error: { message: "Seçilen konum bulunamadı. Lütfen farklı bir konum deneyin." }, status: 400 };
         }
-      } catch (e) {
-        console.warn("[GEOCODING] Network error during geocoding:", e);
+      }
+    } catch (e) {
+      console.warn("[GEOCODING] Network error during geocoding:", e);
+      if (!providedLat || !providedLng) {
         return { error: { message: "Konum servisi geçici olarak kullanılamıyor. Lütfen tekrar deneyin." }, status: 500 };
       }
     }
@@ -121,7 +141,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
       try {
         const cutoffTime = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
         
-        const { data: cachedVenues, error: cacheError } = await supabaseServer
+        let cacheQuery = supabaseServer
           .from('venues')
           .select('*')
           .gte('lat', lat - CACHE_RADIUS)
@@ -130,6 +150,12 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
           .lte('lng', lng + CACHE_RADIUS)
           .gte('updated_at', cutoffTime)
           .limit(20);
+
+        // Enforce strict geo-filtering in Cache
+        if (geoCountry) cacheQuery = cacheQuery.ilike('country', `%${geoCountry}%`);
+        if (geoCity) cacheQuery = cacheQuery.ilike('city', `%${geoCity}%`);
+        
+        const { data: cachedVenues, error: cacheError } = await cacheQuery;
 
         if (!cacheError && cachedVenues && cachedVenues.length >= MIN_CACHED_RESULTS) {
           console.log(`[CACHE HIT] ${cachedVenues.length} mekan Supabase cache'den getirildi (Google'a istek atılmadı)`);
@@ -161,17 +187,18 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // GOOGLE API: Only called if cache miss
+    // GOOGLE API: Strict Text Search Enforcement
     // ═══════════════════════════════════════════════════════════════
-    const fetchFromGoogleClassic = async (query: string, latitude: number, longitude: number) => {
+    const fetchFromGoogleTextSearch = async (query: string, searchLocationStr: string) => {
+      // Force Google to respect political boundaries by appending the explicit location
+      const strictQuery = `${query} in ${searchLocationStr}`;
+      
       const params = new URLSearchParams({
-        location: `${latitude},${longitude}`,
-        radius: "5000",
-        keyword: query,
+        query: strictQuery,
         key: googleApiKey
       });
 
-      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params.toString()}`;
+      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?${params.toString()}`;
       const res = await fetch(url, { method: "GET" });
       
       if (!res.ok) {
@@ -185,7 +212,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
          throw { response: { data: json } };
       }
       
-      const normalizedPlaces = (json.results || []).map((place: any) => {
+      let normalizedPlaces = (json.results || []).map((place: any) => {
         let mappedPrice = "";
         if (place.price_level === 4 || place.price_level === 3) mappedPrice = "PRICE_LEVEL_EXPENSIVE";
         else if (place.price_level === 2) mappedPrice = "PRICE_LEVEL_MODERATE";
@@ -209,16 +236,35 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
         };
       });
 
+      // ═══════════════════════════════════════════════════════════════
+      // ZERO-TOLERANCE POST-FETCH FILTERING
+      // ═══════════════════════════════════════════════════════════════
+      if (geoCountry) {
+        normalizedPlaces = normalizedPlaces.filter((place: any) => {
+          const addr = place.formattedAddress.toLowerCase();
+          
+          // Basic string matching. Some addresses don't have country if local, but we check if we have city/state.
+          // To prevent dropping all venues if Google omits the country name, we check if AT LEAST ONE
+          // of the extracted geo regions (City, State, or Country) appears in the address.
+          const countryMatch = geoCountry ? addr.includes(geoCountry.toLowerCase()) : false;
+          const cityMatch = geoCity ? addr.includes(geoCity.toLowerCase()) : false;
+          const stateMatch = geoState ? addr.includes(geoState.toLowerCase()) : false;
+          
+          // Zero tolerance: It MUST match the extracted location somewhere in the formatted address.
+          return countryMatch || cityMatch || stateMatch;
+        });
+      }
+
       return { places: normalizedPlaces };
     };
 
     const maxRetries = 3;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        let result = await fetchFromGoogleClassic(intentQuery, lat, lng);
+        let result = await fetchFromGoogleTextSearch(intentQuery, locationStr);
         
         if (!result.places || result.places.length === 0) {
-          result = await fetchFromGoogleClassic(`best places`, lat, lng);
+          result = await fetchFromGoogleTextSearch(`best places`, locationStr);
         }
 
         return { data: result, newBbox: currentBbox };
@@ -236,7 +282,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
         // ═══════════════════════════════════════════════════════════
         if (supabaseServer) {
           try {
-            const { data: staleVenues } = await supabaseServer
+            let staleQuery = supabaseServer
               .from('venues')
               .select('*')
               .gte('lat', lat - CACHE_RADIUS)
@@ -244,6 +290,12 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
               .gte('lng', lng - CACHE_RADIUS)
               .lte('lng', lng + CACHE_RADIUS)
               .limit(20);
+
+            // Enforce strict geo-filtering in Stale Cache
+            if (geoCountry) staleQuery = staleQuery.ilike('country', `%${geoCountry}%`);
+            if (geoCity) staleQuery = staleQuery.ilike('city', `%${geoCity}%`);
+            
+            const { data: staleVenues } = await staleQuery;
 
             if (staleVenues && staleVenues.length > 0) {
               console.log(`[STALE CACHE] Google çöktü ama ${staleVenues.length} mekan eski cache'den getirildi`);
