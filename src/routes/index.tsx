@@ -206,7 +206,7 @@ function Index() {
   const searchVenues = async (locationStr: string, vibeStr: string = activeVibe, lat?: number, lng?: number) => {
     const apiKey = "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
     if (!apiKey) {
-      setApiError("API Key bulunamadı (.env dosyanızı kontrol edin)");
+      setApiError("Servis geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
       setHasInitialSearch(true);
       return;
     }
@@ -234,7 +234,7 @@ function Index() {
       
       if (result.error) {
         console.error("ChillSpot API İletişim Hatası:", result.error);
-        setApiError(result.error.message || "Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
+        setApiError(result.error.message || "Şu anda mekan bilgilerine ulaşılamıyor. Lütfen tekrar deneyin.");
         setVenues([]);
         setIsSearching(false);
         return;
@@ -334,12 +334,12 @@ function Index() {
           });
           
       } else {
-        setApiError("Arama sonuçları bulunamadı.");
+        setApiError("Bu bölgede mekan bulunamadı. Farklı bir konum veya farklı bir ruh hali seçmeyi deneyin.");
         setVenues([]);
       }
     } catch (e: any) {
       console.error(e);
-      setApiError(e.message || "Şu anda mekan verilerine ulaşılamıyor. Lütfen daha sonra tekrar deneyin.");
+      setApiError("Şu anda mekan bilgilerine ulaşılamıyor. Lütfen birkaç saniye bekleyip tekrar deneyin.");
       setVenues([]);
     } finally {
       setIsSearching(false);
@@ -725,8 +725,14 @@ function Index() {
                 <p className="font-semibold text-foreground">{t('noVenuesFound')}</p>
                 <p className="mt-1 text-sm">{t('tryAnotherSearch')}</p>
                 {apiError && (
-                  <div className="mt-6 mx-auto max-w-md p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center">
-                    <p className="text-sm text-red-500/90 break-words">{apiError}</p>
+                  <div className="mt-6 mx-auto max-w-md p-5 bg-muted/50 border border-border rounded-xl text-center">
+                    <p className="text-sm text-muted-foreground">{apiError}</p>
+                    <button 
+                      onClick={() => searchVenues(activeRegion, activeVibe, activeRegionLat, activeRegionLng)}
+                      className="mt-3 px-5 py-2 text-sm font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Tekrar Dene
+                    </button>
                   </div>
                 )}
               </div>

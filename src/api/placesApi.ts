@@ -4,7 +4,7 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
   .validator((data: { photoName: string; maxHeight?: number; maxWidth?: number }) => data)
   .handler(async ({ data }) => {
     const { photoName, maxHeight = 800, maxWidth = 1280 } = data;
-    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
+    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'] || "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
     if (!apiKey) return { url: null };
 
     try {
@@ -31,10 +31,10 @@ export const fetchPlaceDetailsFromServer = createServerFn({ method: 'GET' })
   .validator((data: { placeId: string; language: string }) => data)
   .handler(async ({ data }) => {
     const { placeId, language } = data;
-    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
+    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'] || "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
 
     if (!apiKey) {
-      return { error: "API Key bulunamadı" };
+      return { error: "Servis geçici olarak kullanılamıyor." };
     }
 
     try {
@@ -70,7 +70,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     const googleApiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'] || "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
 
     if (!googleApiKey) {
-      return { error: { message: "API Key bulunamadı (.env dosyanızı kontrol edin)" } };
+      return { error: { message: "Servis geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin." } };
     }
 
     let lat = providedLat || 0;
@@ -100,11 +100,11 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
           }
         } else {
           console.warn("[GEOCODING] Could not resolve coordinates for:", locationStr, geocodeData.status);
-          return { error: { message: "Lokasyon bulunamadı. Lütfen haritadan geçerli bir konum seçin." }, status: 400 };
+          return { error: { message: "Seçilen konum bulunamadı. Lütfen farklı bir konum deneyin." }, status: 400 };
         }
       } catch (e) {
         console.warn("[GEOCODING] Network error during geocoding:", e);
-        return { error: { message: "Lokasyon servisi geçici olarak kullanılamıyor." }, status: 500 };
+        return { error: { message: "Konum servisi geçici olarak kullanılamıyor. Lütfen tekrar deneyin." }, status: 500 };
       }
     }
 
@@ -161,18 +161,27 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
       return { places: normalizedPlaces };
     };
 
-    try {
-      let result = await fetchFromGoogleClassic(intentQuery, lat, lng);
-      
-      if (!result.places || result.places.length === 0) {
-        // Fallback broad search
-        result = await fetchFromGoogleClassic(`best places`, lat, lng);
-      }
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        let result = await fetchFromGoogleClassic(intentQuery, lat, lng);
+        
+        if (!result.places || result.places.length === 0) {
+          result = await fetchFromGoogleClassic(`best places`, lat, lng);
+        }
 
-      return { data: result, newBbox: currentBbox };
-      
-    } catch (e: any) {
-      console.error("Google Classic API Hatası:", e.response?.data || e);
-      return { error: { message: "Mekan verilerine ulaşılamadı. Lütfen API yetkilerinizi kontrol edin." }, status: 500 };
+        return { data: result, newBbox: currentBbox };
+        
+      } catch (e: any) {
+        console.error(`[Attempt ${attempt}/${maxRetries}] Google Classic API Hatası:`, e.response?.data || e);
+        
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+        
+        return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor. Lütfen birkaç saniye bekleyip tekrar deneyin." }, status: 500 };
+      }
     }
+    return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor. Lütfen birkaç saniye bekleyip tekrar deneyin." }, status: 500 };
   });
