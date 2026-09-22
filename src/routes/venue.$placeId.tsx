@@ -157,9 +157,9 @@ function VenueDetails() {
             user_rating_count: data.userRatingCount,
             phone: data.internationalPhoneNumber || null,
             website: data.websiteUri || null,
-            map_link: data.googleMapsUri || null,
-            open_now: data.currentOpeningHours?.openNow ?? null,
-            opening_hours: data.currentOpeningHours?.weekdayDescriptions || null,
+            map_link: null, // Foursquare API'den link alınmıyor
+            open_now: null,
+            opening_hours: null,
             editorial_summary: data.editorialSummary?.text || null,
             updated_at: new Date().toISOString()
           }, { onConflict: 'google_place_id' });
