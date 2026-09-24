@@ -81,44 +81,55 @@ export const fetchPlaceDetailsFromServer = createServerFn({ method: 'GET' })
   .validator((data: { placeId: string; language: string }) => data)
   .handler(async ({ data }) => {
     const { placeId, language } = data;
-    const apiKey = process.env['FOURSQUARE_API_KEY'] || process.env['VITE_FOURSQUARE_API_KEY'] || "304M0FLWEVEDW1BQRYWA4RHW5ACLGMJOVZZ4SP5TZLSGR25M";
+    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
 
     if (!apiKey) {
       return { error: "Servis geçici olarak kullanılamıyor." };
     }
 
     try {
-      // Foursquare Place Details
-      const res = await fetch(`https://api.foursquare.com/v3/places/${placeId}?language=${language}&fields=fsq_id,name,location,rating,stats,price,photos,tel,website,description`, {
+      const isFsq = placeId.startsWith('fsq|') || placeId.length === 24;
+      if (isFsq) {
+        const fsqKey = process.env['FOURSQUARE_API_KEY'] || process.env['VITE_FOURSQUARE_API_KEY'] || "304M0FLWEVEDW1BQRYWA4RHW5ACLGMJOVZZ4SP5TZLSGR25M";
+        const res = await fetch(`https://api.foursquare.com/v3/places/${placeId}?language=${language}&fields=fsq_id,name,location,rating,stats,price,photos,tel,website,description`, {
+          method: "GET",
+          headers: { "Authorization": fsqKey, "Accept": "application/json" }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          return {
+            id: json.fsq_id,
+            displayName: { text: json.name },
+            formattedAddress: json.location?.formatted_address || "",
+            location: { latitude: json.location?.geocodes?.main?.latitude, longitude: json.location?.geocodes?.main?.longitude },
+            rating: json.rating ? (json.rating / 2) : 0,
+            userRatingCount: json.stats?.total_ratings || 0,
+            priceLevel: json.price === 3 || json.price === 4 ? "PRICE_LEVEL_EXPENSIVE" 
+                      : json.price === 2 ? "PRICE_LEVEL_MODERATE" 
+                      : json.price === 1 ? "PRICE_LEVEL_INEXPENSIVE" : "",
+            internationalPhoneNumber: json.tel || "",
+            websiteUri: json.website || "",
+            editorialSummary: { text: json.description || "" },
+            reviews: [],
+            photos: json.photos ? json.photos.map((p: any) => ({
+               name: `fsq|${p.prefix}|${p.suffix}`,
+               photo_reference: `fsq|${p.prefix}|${p.suffix}`
+            })) : []
+          };
+        }
+      }
+
+      // Google Places API
+      const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=${language}`, {
         method: "GET",
         headers: {
-          "Authorization": apiKey,
-          "Accept": "application/json"
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "id,displayName,formattedAddress,location,rating,userRatingCount,priceLevel,internationalPhoneNumber,websiteUri,editorialSummary,reviews,photos"
         }
       });
-      if (!res.ok) throw new Error("Failed to fetch place details from Foursquare");
+      if (!res.ok) throw new Error("Failed to fetch place details from Google");
       const json = await res.json();
-      
-      // Map Foursquare to the format frontend expects
-      return {
-        id: json.fsq_id,
-        displayName: { text: json.name },
-        formattedAddress: json.location?.formatted_address || "",
-        location: { latitude: json.location?.geocodes?.main?.latitude, longitude: json.location?.geocodes?.main?.longitude },
-        rating: json.rating ? (json.rating / 2) : 0, // Foursquare rating is out of 10
-        userRatingCount: json.stats?.total_ratings || 0,
-        priceLevel: json.price === 3 || json.price === 4 ? "PRICE_LEVEL_EXPENSIVE" 
-                  : json.price === 2 ? "PRICE_LEVEL_MODERATE" 
-                  : json.price === 1 ? "PRICE_LEVEL_INEXPENSIVE" : "",
-        internationalPhoneNumber: json.tel || "",
-        websiteUri: json.website || "",
-        editorialSummary: { text: json.description || "" },
-        reviews: [], // Foursquare v3 doesn't return reviews directly on this endpoint without a separate call
-        photos: json.photos ? json.photos.map((p: any) => ({
-           name: `fsq|${p.prefix}|${p.suffix}`,
-           photo_reference: `fsq|${p.prefix}|${p.suffix}`
-        })) : []
-      };
+      return json;
     } catch (e: any) {
       console.error(e);
       return { error: e.message };
@@ -139,9 +150,9 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     const { locationStr, intentQuery, activeRegionBbox } = data;
     const providedLat = data.lat;
     const providedLng = data.lng;
-    const foursquareApiKey = process.env['FOURSQUARE_API_KEY'] || process.env['VITE_FOURSQUARE_API_KEY'] || "304M0FLWEVEDW1BQRYWA4RHW5ACLGMJOVZZ4SP5TZLSGR25M";
+    const googleApiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
 
-    if (!foursquareApiKey) {
+    if (!googleApiKey) {
       return { error: { message: "Servis geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin." } };
     }
 
@@ -149,10 +160,8 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     let lng = providedLng || 0;
     let currentBbox = activeRegionBbox;
 
-    // Foursquare API can search by 'near' string directly, so we don't strict geocode first if we don't have lat/lng
-    
     // ═══════════════════════════════════════════════════════════════
-    // CACHE LAYER: Check Supabase first before hitting Foursquare
+    // CACHE LAYER: Check Supabase first before hitting Google
     // ═══════════════════════════════════════════════════════════════
     const { supabaseServer } = await import('../lib/supabaseServer');
     
@@ -181,7 +190,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
           console.log(`[CACHE HIT] ${cachedVenues.length} mekan Supabase cache'den getirildi`);
           
           const cachedPlaces = cachedVenues.map((v: any) => ({
-            id: v.google_place_id, // We reuse this column for fsq_id
+            id: v.google_place_id,
             displayName: { text: v.name },
             formattedAddress: v.address || "",
             location: { latitude: v.lat, longitude: v.lng },
@@ -193,7 +202,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
                       : "",
             types: [],
             photos: v.image_url && (v.image_url.startsWith('photo:') || v.image_url.startsWith('fsq|'))
-              ? [{ photo_reference: v.image_url.replace('photo:', '') }] 
+              ? [{ name: v.image_url.replace('photo:', ''), photo_reference: v.image_url.replace('photo:', '') }] 
               : []
           }));
 
@@ -205,23 +214,25 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // FOURSQUARE API
+    // GOOGLE PLACES API (Text Search)
     // ═══════════════════════════════════════════════════════════════
-    const fetchFromFoursquare = async (query: string, searchLocationStr: string) => {
-      const params = new URLSearchParams({
-        query: query,
-        near: searchLocationStr,
-        limit: "20",
-        fields: "fsq_id,name,location,rating,stats,price,photos,geocodes"
-      });
-
-      const url = `https://api.foursquare.com/v3/places/search?${params.toString()}`;
+    const fetchFromGoogle = async (query: string, searchLocationStr: string) => {
+      const textQuery = `${query} in ${searchLocationStr}`;
+      const url = `https://places.googleapis.com/v1/places:searchText`;
+      
       const res = await fetch(url, { 
-        method: "GET",
+        method: "POST",
         headers: {
-          "Authorization": foursquareApiKey,
-          "Accept": "application/json"
-        }
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": googleApiKey,
+          // Removed expensive fields to stay within Basic Data SKU
+          "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.types"
+        },
+        body: JSON.stringify({
+          textQuery: textQuery,
+          languageCode: data.language || "tr",
+          maxResultCount: 20
+        })
       });
       
       if (!res.ok) {
@@ -232,51 +243,27 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
       const json = await res.json();
       
       // Determine center/bbox from the first result if we don't have lat/lng
-      if ((lat === 0 || lng === 0) && json.results && json.results.length > 0) {
-         lat = json.results[0].geocodes?.main?.latitude || lat;
-         lng = json.results[0].geocodes?.main?.longitude || lng;
+      if ((lat === 0 || lng === 0) && json.places && json.places.length > 0) {
+         lat = json.places[0].location?.latitude || lat;
+         lng = json.places[0].location?.longitude || lng;
       }
 
-      const normalizedPlaces = (json.results || []).map((place: any) => {
-        let mappedPrice = "";
-        if (place.price === 4 || place.price === 3) mappedPrice = "PRICE_LEVEL_EXPENSIVE";
-        else if (place.price === 2) mappedPrice = "PRICE_LEVEL_MODERATE";
-        else if (place.price === 1) mappedPrice = "PRICE_LEVEL_INEXPENSIVE";
-
-        return {
-          id: place.fsq_id,
-          displayName: { text: place.name },
-          formattedAddress: place.location?.formatted_address || "",
-          location: {
-            latitude: place.geocodes?.main?.latitude,
-            longitude: place.geocodes?.main?.longitude
-          },
-          rating: place.rating ? (place.rating / 2) : 0, // Convert 10-scale to 5-scale
-          userRatingCount: place.stats?.total_ratings || 0,
-          priceLevel: mappedPrice,
-          types: [],
-          photos: place.photos ? place.photos.map((p: any) => ({
-             photo_reference: `fsq|${p.prefix}|${p.suffix}`
-          })) : []
-        };
-      });
-
-      return { places: normalizedPlaces };
+      return { places: json.places || [] };
     };
 
     const maxRetries = 2;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        let result = await fetchFromFoursquare(intentQuery, locationStr);
+        let result = await fetchFromGoogle(intentQuery, locationStr);
         
         if (!result.places || result.places.length === 0) {
-           result = await fetchFromFoursquare("best places", locationStr);
+           result = await fetchFromGoogle("best places", locationStr);
         }
 
         return { data: result, newBbox: currentBbox };
         
       } catch (e: any) {
-        console.error(`[Attempt ${attempt}/${maxRetries}] Foursquare API Hatası:`, e.response?.data || e);
+        console.error(`[Attempt ${attempt}/${maxRetries}] Google API Hatası:`, e.response?.data || e);
         
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
