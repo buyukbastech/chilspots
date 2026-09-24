@@ -60,6 +60,69 @@ import { getPhotoUrlFromServer, fetchVenuesFromServer } from "../api/placesApi";
 import { useLanguage, type Language } from "../contexts/LanguageContext";
 import { LoginModal } from "@/components/LoginModal";
 
+function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any, isThumbnail?: boolean, className?: string }) {
+  const isPlaceholderRef = venue.image === "placeholder_ref" || venue.image === "placeholder_name";
+  const isPhotoPrefix = venue.image?.startsWith("photo:");
+  const isRawGoogleUrl = venue.image?.includes("places.googleapis.com") || venue.image?.includes("maps.googleapis.com");
+  
+  const isServerFetched = isPlaceholderRef || isPhotoPrefix || isRawGoogleUrl;
+  
+  const defaultSrc = isServerFetched 
+    ? "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" 
+    : venue.image;
+    
+  const [photoUrl, setPhotoUrl] = useState<string>(defaultSrc);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (isServerFetched) {
+      let targetPhotoName = venue.photo_name;
+      
+      if (isPhotoPrefix) {
+        targetPhotoName = venue.image.substring(6);
+      } else if (isRawGoogleUrl) {
+        try {
+           const urlObj = new URL(venue.image);
+           const match = urlObj.pathname.match(/v1\/(places\/[^\/]+\/photos\/[^\/]+)\/media/);
+           if (match && match[1]) {
+             targetPhotoName = match[1];
+           } else {
+             const ref = urlObj.searchParams.get('photoreference');
+             if (ref) targetPhotoName = ref;
+           }
+        } catch(e) {}
+      }
+
+      if (targetPhotoName) {
+        getPhotoUrlFromServer({ 
+          data: { 
+            photoName: targetPhotoName, 
+            maxHeight: isThumbnail ? 96 : 800, 
+            maxWidth: isThumbnail ? 96 : 1280 
+          } 
+        })
+        .then((res) => { 
+          if (res?.url && isMounted) {
+            setPhotoUrl(res.url); 
+          }
+        });
+      }
+    }
+    return () => { isMounted = false; };
+  }, [venue.image, venue.photo_name, isServerFetched, isThumbnail, isPhotoPrefix, isRawGoogleUrl]);
+
+  return (
+    <img 
+      src={photoUrl} 
+      alt={`${venue.name} mekan atmosferi`} 
+      width={isThumbnail ? 96 : 1280} 
+      height={isThumbnail ? 96 : 800}
+      loading={!isThumbnail ? "lazy" : undefined}
+      className={className}
+    />
+  );
+}
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -766,20 +829,9 @@ function Index() {
               visibleVenues.map((venue, index) => (
                 <article key={venue.id} onMouseEnter={() => setSelected(venue.id)} onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: venue.placeId } })} className={cn("group animate-rise cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-card transition duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow", selected === venue.id ? "border-primary/60" : "border-border")} style={{ animationDelay: `${index * 70}ms` }}>
                   <div className="relative aspect-[16/11] overflow-hidden">
-                    <img 
-                      src={venue.image === "placeholder_ref" || venue.image === "placeholder_name" ? "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" : venue.image} 
-                      alt={`${venue.name} mekan atmosferi`} 
-                      width={1280} 
-                      height={800} 
-                      loading={index === 0 ? "eager" : "lazy"} 
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                      ref={(el) => {
-                        if (el && (venue.image === "placeholder_ref" || venue.image === "placeholder_name") && !el.dataset['loadedUrl']) {
-                          el.dataset['loadedUrl'] = "fetching";
-                          getPhotoUrlFromServer({ data: { photoName: (venue as any).photo_name, maxHeight: 800, maxWidth: 1280 } })
-                            .then((res) => { if (res?.url) el.src = res.url; });
-                        }
-                      }}
+                    <VenueImage 
+                      venue={venue} 
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105" 
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-background/20" />
                     <span className="absolute left-3 top-3 rounded-full border border-primary/30 bg-background/80 px-3 py-1.5 text-xs font-bold text-primary backdrop-blur-xl"><Sparkles className="mr-1 inline h-3 w-3" />%{venue.match} {t('match')}</span>
@@ -814,21 +866,13 @@ function Index() {
             </div>
 
             {selectedVenue && <div key={selectedVenue.id} className="absolute bottom-6 left-5 right-5 z-20 flex items-center gap-3 rounded-2xl border border-primary/30 bg-background/90 p-3 shadow-glow backdrop-blur-xl">
-              <img 
-                src={selectedVenue.image === "placeholder_ref" || selectedVenue.image === "placeholder_name" ? "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80" : selectedVenue.image} 
-                alt="" 
-                width={96} 
-                height={96} 
-                className="h-16 w-16 shrink-0 rounded-xl object-cover cursor-pointer" 
-                onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: selectedVenue.placeId } })} 
-                ref={(el) => {
-                  if (el && (selectedVenue.image === "placeholder_ref" || selectedVenue.image === "placeholder_name") && !el.dataset['loadedUrl']) {
-                    el.dataset['loadedUrl'] = "fetching";
-                    getPhotoUrlFromServer({ data: { photoName: (selectedVenue as any).photo_name, maxHeight: 96, maxWidth: 96 } })
-                      .then((res) => { if (res?.url) el.src = res.url; });
-                  }
-                }}
-              />
+              <div onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: selectedVenue.placeId } })} className="shrink-0 cursor-pointer">
+                <VenueImage 
+                  venue={selectedVenue} 
+                  isThumbnail={true}
+                  className="h-16 w-16 shrink-0 rounded-xl object-cover" 
+                />
+              </div>
               <div className="min-w-0 flex-1 cursor-pointer" onClick={() => navigate({ to: '/venue/$placeId', params: { placeId: selectedVenue.placeId } })}>
                 <p className="text-xs font-bold text-primary">%{selectedVenue.match} {t('match').toUpperCase()}</p>
                 <h3 className="truncate font-display font-semibold">{selectedVenue.name}</h3>
@@ -853,7 +897,7 @@ function Index() {
               <Minus className="h-4 w-4" />
             </Button>
             <div className="relative aspect-video w-full overflow-hidden">
-               <img src={selectedVenue.image} alt={selectedVenue.name} className="h-full w-full object-cover" />
+               <VenueImage venue={selectedVenue} className="h-full w-full object-cover" />
                <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
             </div>
             <div className="p-6 pt-2">

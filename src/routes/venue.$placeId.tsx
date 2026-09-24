@@ -111,6 +111,36 @@ function ReviewForm({ onSubmit, user }: { onSubmit: (text: string, rating: numbe
   );
 }
 
+function SafeImage({ photoName, maxHeight, maxWidth, className, alt, onClick }: { photoName: string, maxHeight: number, maxWidth: number, className?: string, alt?: string, onClick?: (e: any) => void }) {
+  const [photoUrl, setPhotoUrl] = useState<string>("https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80");
+  
+  useEffect(() => {
+    let isMounted = true;
+    if (!photoName) return;
+    
+    getPhotoUrlFromServer({ data: { photoName, maxHeight, maxWidth } })
+      .then((res) => {
+        if (res?.url && isMounted) setPhotoUrl(res.url);
+      })
+      .catch(() => {});
+      
+    return () => { isMounted = false; };
+  }, [photoName, maxHeight, maxWidth]);
+
+  return (
+    <img 
+      src={photoUrl}
+      alt={alt}
+      className={className}
+      onClick={onClick}
+      onError={(e) => {
+        e.currentTarget.src = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80";
+      }}
+    />
+  );
+}
+
+
 function VenueDetails() {
   const { placeId } = Route.useParams();
   const { t, language, setLanguage } = useLanguage();
@@ -344,34 +374,22 @@ function VenueDetails() {
         <div className="px-4 mb-6 mt-4">
           <div className="grid h-[300px] gap-2 md:h-[400px] grid-cols-2 md:grid-cols-4 rounded-3xl overflow-hidden">
             {venue.photos && venue.photos.length > 0 ? (
-              venue.photos.slice(0, 4).map((photo: any, index: number) => {
-                const photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=1280&key=${import.meta.env['VITE_GOOGLE_PLACES_API_KEY']}`;
-                return (
-                  <div key={photo.name} className={cn("relative overflow-hidden cursor-pointer bg-muted", index === 0 ? "col-span-2 row-span-2 md:col-span-2 md:row-span-2" : "hidden md:block")} onClick={() => setSelectedPhotoIndex(index)}>
-                    <img 
-                      src={photoUrl} 
-                      alt={`Photo ${index + 1}`} 
-                      className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
-                      onError={(e) => {
-                        e.currentTarget.src = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80";
-                      }}
-                      ref={(el) => {
-                        if (el && !el.dataset['loadedUrl']) {
-                          el.dataset['loadedUrl'] = "fetching";
-                          getPhotoUrlFromServer({ data: { photoName: photo.name, maxHeight: 800, maxWidth: 1280 } })
-                            .then((res) => { if (res?.url) el.src = res.url; })
-                            .catch(() => { el.src = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"; });
-                        }
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/0 transition-colors hover:bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100">
-                      {index === 3 && venue.photos.length > 4 ? (
-                         <span className="text-white font-bold text-lg bg-black/50 px-4 py-2 rounded-full">+{venue.photos.length - 4}</span>
-                      ) : null}
-                    </div>
+              venue.photos.slice(0, 4).map((photo: any, index: number) => (
+                <div key={photo.name} className={cn("relative overflow-hidden cursor-pointer bg-muted", index === 0 ? "col-span-2 row-span-2 md:col-span-2 md:row-span-2" : "hidden md:block")} onClick={() => setSelectedPhotoIndex(index)}>
+                  <SafeImage 
+                    photoName={photo.name || photo.photo_reference}
+                    maxHeight={800}
+                    maxWidth={1280}
+                    alt={`Photo ${index + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/0 transition-colors hover:bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100">
+                    {index === 3 && venue.photos.length > 4 ? (
+                       <span className="text-white font-bold text-lg bg-black/50 px-4 py-2 rounded-full">+{venue.photos.length - 4}</span>
+                    ) : null}
                   </div>
-                );
-              })
+                </div>
+              ))
             ) : (
               <div className="col-span-2 md:col-span-4 bg-muted flex items-center justify-center">
                 <p className="text-muted-foreground">{t('photoNotFound')}</p>
@@ -557,18 +575,13 @@ function VenueDetails() {
 
           {/* Image */}
           <div className="relative h-full w-full flex items-center justify-center p-4 md:p-12" onClick={() => setSelectedPhotoIndex(null)}>
-            <img 
-              src={`https://places.googleapis.com/v1/${venue.photos[selectedPhotoIndex].name}/media?maxHeightPx=1080&maxWidthPx=1920&key=${import.meta.env['VITE_GOOGLE_PLACES_API_KEY']}`}
+            <SafeImage 
+              photoName={venue.photos[selectedPhotoIndex].name || venue.photos[selectedPhotoIndex].photo_reference}
+              maxHeight={1080}
+              maxWidth={1920}
               alt={`Gallery image ${selectedPhotoIndex + 1}`}
               className="max-h-full max-w-full object-contain shadow-2xl select-none"
               onClick={(e) => e.stopPropagation()}
-              ref={(el) => {
-                if (el && el.dataset['currentIndex'] !== String(selectedPhotoIndex)) {
-                  el.dataset['currentIndex'] = String(selectedPhotoIndex);
-                  getPhotoUrlFromServer({ data: { photoName: venue.photos[selectedPhotoIndex].name, maxHeight: 1080, maxWidth: 1920 } })
-                    .then((res) => { if (res?.url) el.src = res.url; });
-                }
-              }}
             />
           </div>
         </div>

@@ -6,37 +6,61 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getPhotoUrlFromServer } from "@/api/placesApi";
-import { Heart, MessageSquare, MapPin, ArrowLeft, Star, LogOut, Pencil, Loader2, Sparkles, TrendingUp, Award, Flame, Store, Building2, FileText, Hash, ImagePlus, X, Trash2, Globe, Map, Compass } from "lucide-react";
+import { LogOut, Store, MapPin, Map, Hash, Info, User, CheckCircle2, ArrowLeft, Camera, Trash2, ShieldCheck, Heart, Star, MessageSquare, Building2, Globe, FileText, Pencil, X, Loader2, Phone, Clock, Sparkles, ImagePlus, Compass, TrendingUp, Flame, Award } from "lucide-react";
 import { Country, State, City } from "country-state-city";
 
 export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
+function FavoriteImage({ fav }: { fav: any }) {
+  const [photoUrl, setPhotoUrl] = useState<string>(
+    fav.venues?.image_url?.startsWith('http') 
+      ? fav.venues?.image_url 
+      : "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    if (
+      fav.venues?.image_url && 
+      !fav.venues?.image_url.startsWith('http') && 
+      fav.venues?.image_url !== 'placeholder_ref' && 
+      fav.venues?.image_url !== 'placeholder_name'
+    ) {
+      getPhotoUrlFromServer({ data: { photoName: fav.venues?.image_url, maxHeight: 400, maxWidth: 600 } })
+        .then((res) => { 
+          if (res?.url && isMounted) {
+            setPhotoUrl(res.url); 
+          }
+        });
+    }
+    return () => { isMounted = false; };
+  }, [fav.venues?.image_url]);
+
+  return (
+    <img 
+      src={photoUrl} 
+      alt={fav.venues?.name} 
+      className="w-full h-full object-cover opacity-80"
+    />
+  );
+}
+
 function ProfilePage() {
-  const { t } = useLanguage();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [session, setSession] = useState<any>(null);
-  
-  // User states
+  const [businessData, setBusinessData] = useState<any>(null);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
-  
-  // Business states
-  const [businessData, setBusinessData] = useState<any>(null);
-
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  
-  // Photo Delete Modal State
   const [photoToDelete, setPhotoToDelete] = useState<number | null>(null);
-
-  // Favorite Delete Modal State
   const [favoriteToDelete, setFavoriteToDelete] = useState<number | null>(null);
-
-  // Edit Modal States
+  
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -44,12 +68,51 @@ function ProfilePage() {
     address: "",
     tax_id: "",
     business_type: "",
-    venue_type: "",
+    venue_type: [] as string[],
     country: "",
     region: "",
     district: "",
-    company_info: ""
+    company_info: "",
+    phone: "",
+    website: "",
+    working_hours: {} as any
   });
+
+  const VIBE_OPTIONS = [
+    { value: "Yorgun", label: t('venueTired') },
+    { value: "Keyifli & Enerjik", label: t('venueCheerful') },
+    { value: "Sakin", label: t('venueCalm') },
+    { value: "Melankolik", label: t('venueMelancholic') },
+    { value: "Sosyal", label: t('venueSocial') },
+    { value: "Meraklı", label: t('venueCurious') },
+    { value: "Romantik", label: t('venueRomantic') },
+    { value: "Nostaljik", label: t('venueNostalgic') },
+    { value: "Eğlence", label: t('venueFun') },
+    { value: "Rahat", label: t('venueChill') }
+  ];
+
+  const DAYS = [
+    { key: 'monday', label: 'Pazartesi' },
+    { key: 'tuesday', label: 'Salı' },
+    { key: 'wednesday', label: 'Çarşamba' },
+    { key: 'thursday', label: 'Perşembe' },
+    { key: 'friday', label: 'Cuma' },
+    { key: 'saturday', label: 'Cumartesi' },
+    { key: 'sunday', label: 'Pazar' },
+  ];
+
+  const handleWorkingHourChange = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+    setEditFormData(prev => ({
+      ...prev,
+      working_hours: {
+        ...prev.working_hours,
+        [day]: {
+          ...(prev.working_hours as any)?.[day],
+          [field]: value
+        }
+      }
+    }));
+  };
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -293,11 +356,14 @@ function ProfilePage() {
       address: businessData?.address || "",
       tax_id: businessData?.tax_id || "",
       business_type: businessData?.business_type || "",
-      venue_type: businessData?.venue_type || "",
+      venue_type: Array.isArray(businessData?.venue_type) ? businessData.venue_type : (businessData?.venue_type ? [businessData.venue_type] : []),
       country: businessData?.country || "",
       region: businessData?.region || "",
       district: businessData?.district || "",
-      company_info: businessData?.company_info || ""
+      company_info: businessData?.company_info || "",
+      phone: businessData?.phone || "",
+      website: businessData?.website || "",
+      working_hours: businessData?.working_hours || {}
     });
     setIsEditModalOpen(true);
   };
@@ -513,6 +579,22 @@ function ProfilePage() {
                       : t('notSpecified')}
                   </div>
                 </div>
+                {businessData?.phone && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center"><Phone className="w-4 h-4 mr-2" /> Telefon</div>
+                    <div className="font-semibold text-lg">{businessData.phone}</div>
+                  </div>
+                )}
+                {businessData?.website && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center"><Globe className="w-4 h-4 mr-2" /> Web Sitesi</div>
+                    <div className="font-semibold text-blue-400">
+                      <a href={businessData.website.startsWith('http') ? businessData.website : `https://${businessData.website}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {businessData.website}
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-6">
@@ -528,8 +610,18 @@ function ProfilePage() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1 flex items-center"><Sparkles className="w-4 h-4 mr-2" /> {t('yourVenueStyle').replace(': *', '')}</div>
-                  <div className="inline-flex items-center bg-primary/20 text-primary font-bold px-3 py-1 rounded-xl">
-                    {businessData?.venue_type}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {Array.isArray(businessData?.venue_type) ? businessData.venue_type.map((v: string) => (
+                      <span key={v} className="inline-flex items-center bg-primary/20 text-primary font-bold px-3 py-1 rounded-xl text-sm">
+                        {v}
+                      </span>
+                    )) : businessData?.venue_type ? (
+                      <span className="inline-flex items-center bg-primary/20 text-primary font-bold px-3 py-1 rounded-xl text-sm">
+                        {businessData.venue_type}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -609,19 +701,60 @@ function ProfilePage() {
                     <input required type="text" value={editFormData.address} onChange={(e) => setEditFormData({...editFormData, address: e.target.value})} className="w-full bg-accent/30 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
                   </div>
                   <div className="space-y-2 md:col-span-1">
+                    <label className="text-sm text-muted-foreground">Telefon</label>
+                    <input type="tel" value={editFormData.phone} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} className="w-full bg-accent/30 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
+                  </div>
+                  <div className="space-y-2 md:col-span-1">
+                    <label className="text-sm text-muted-foreground">Web Sitesi</label>
+                    <input type="url" value={editFormData.website} onChange={(e) => setEditFormData({...editFormData, website: e.target.value})} className="w-full bg-accent/30 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
                     <label className="text-sm text-muted-foreground">{t('yourVenueStyle').replace(': *', '')}</label>
-                    <select required value={editFormData.venue_type} onChange={(e) => setEditFormData({...editFormData, venue_type: e.target.value})} className="w-full bg-accent/50 border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
-                      <option value="Yorgun">{t('venueTired')}</option>
-                      <option value="Keyifli & Enerjik">{t('venueCheerful')}</option>
-                      <option value="Sakin">{t('venueCalm')}</option>
-                      <option value="Melankolik">{t('venueMelancholic')}</option>
-                      <option value="Sosyal">{t('venueSocial')}</option>
-                      <option value="Meraklı">{t('venueCurious')}</option>
-                      <option value="Romantik">{t('venueRomantic')}</option>
-                      <option value="Nostaljik">{t('venueNostalgic')}</option>
-                      <option value="Eğlence">{t('venueFun')}</option>
-                      <option value="Rahat">{t('venueChill')}</option>
-                    </select>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {VIBE_OPTIONS.map(vibe => {
+                        const isSelected = editFormData.venue_type.includes(vibe.value);
+                        return (
+                          <button
+                            key={vibe.value}
+                            type="button"
+                            onClick={() => {
+                              setEditFormData(prev => {
+                                const types = prev.venue_type;
+                                if (types.includes(vibe.value)) return { ...prev, venue_type: types.filter(t => t !== vibe.value) };
+                                return { ...prev, venue_type: [...types, vibe.value] };
+                              });
+                            }}
+                            className={cn("px-3 py-1.5 rounded-lg text-xs transition-all border", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-accent/50 border-border hover:bg-accent")}
+                          >
+                            {vibe.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm text-muted-foreground">Çalışma Saatleri</label>
+                    <div className="space-y-2">
+                      {DAYS.map(day => {
+                        const hours = editFormData.working_hours?.[day.key] || { open: "09:00", close: "22:00", closed: false };
+                        return (
+                          <div key={day.key} className="flex items-center gap-4 bg-accent/30 p-2 px-3 rounded-lg border border-border">
+                            <div className="w-20 font-medium text-xs text-muted-foreground">{day.label}</div>
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                              <input type="checkbox" checked={hours.closed} onChange={(e) => handleWorkingHourChange(day.key, 'closed', e.target.checked)} className="rounded bg-black/50 border-white/10 text-primary" />
+                              Kapalı
+                            </label>
+                            {!hours.closed && (
+                              <div className="flex items-center gap-2 flex-1 justify-end">
+                                <input type="time" value={hours.open} onChange={(e) => handleWorkingHourChange(day.key, 'open', e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+                                <span className="text-muted-foreground text-xs">-</span>
+                                <input type="time" value={hours.close} onChange={(e) => handleWorkingHourChange(day.key, 'close', e.target.value)} className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm text-muted-foreground">{t('companyInfoLabel')}</label>
@@ -835,18 +968,7 @@ function ProfilePage() {
                     }}
                   >
                     <div className="h-32 bg-accent/50 relative">
-                      <img 
-                        src={fav.venues?.image_url?.startsWith('http') ? fav.venues?.image_url : "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"} 
-                        alt={fav.venues?.name} 
-                        className="w-full h-full object-cover opacity-80"
-                        ref={(el) => {
-                          if (el && fav.venues?.image_url && !fav.venues?.image_url.startsWith('http') && fav.venues?.image_url !== 'placeholder_ref' && fav.venues?.image_url !== 'placeholder_name' && !el.dataset['loadedUrl']) {
-                            el.dataset['loadedUrl'] = "fetching";
-                            getPhotoUrlFromServer({ data: { photoName: fav.venues?.image_url, maxHeight: 400, maxWidth: 600 } })
-                              .then((res) => { if (res?.url) el.src = res.url; });
-                          }
-                        }}
-                      />
+                      <FavoriteImage fav={fav} />
                       <button 
                         className="fav-remove-btn absolute top-2 left-2 h-8 w-8 rounded-full bg-background/60 backdrop-blur-md hover:bg-destructive hover:text-destructive-foreground text-primary/80 transition-colors z-20 flex items-center justify-center cursor-pointer"
                         onClick={(e) => handleRemoveFavorite(e, fav.id)}

@@ -19,6 +19,32 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
     const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
     if (!apiKey) return { url: null };
 
+    // Initialize supabaseServer
+    let supabaseServer: any = null;
+    try {
+      const sbMod = await import('../lib/supabaseServer');
+      supabaseServer = sbMod.supabaseServer;
+    } catch (e) {}
+
+    // 1. Check DB Cache
+    if (supabaseServer) {
+      try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: cachedPhoto } = await supabaseServer
+          .from('photo_cache')
+          .select('photo_url')
+          .eq('photo_name', photoName)
+          .gte('fetched_at', thirtyDaysAgo)
+          .single();
+          
+        if (cachedPhoto && cachedPhoto.photo_url) {
+          return { url: cachedPhoto.photo_url };
+        }
+      } catch (err) {
+        // Ignore cache lookup errors, just fetch
+      }
+    }
+
     try {
       let url = "";
       if (photoName.includes('/')) {
@@ -29,7 +55,20 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
       const res = await fetch(url, { redirect: 'manual' });
       
       if (res.status === 301 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
-        return { url: res.headers.get('location') };
+        const locationUrl = res.headers.get('location');
+        if (locationUrl && supabaseServer) {
+          // Save to cache
+          try {
+            await supabaseServer.from('photo_cache').upsert({
+              photo_name: photoName,
+              photo_url: locationUrl,
+              fetched_at: new Date().toISOString()
+            }, { onConflict: 'photo_name' });
+          } catch (cacheErr) {
+            console.error("Cache save error:", cacheErr);
+          }
+        }
+        return { url: locationUrl };
       }
       
       return { url: null };
@@ -42,7 +81,7 @@ export const fetchPlaceDetailsFromServer = createServerFn({ method: 'GET' })
   .validator((data: { placeId: string; language: string }) => data)
   .handler(async ({ data }) => {
     const { placeId, language } = data;
-    const apiKey = process.env['FOURSQUARE_API_KEY'];
+    const apiKey = process.env['FOURSQUARE_API_KEY'] || process.env['VITE_FOURSQUARE_API_KEY'] || "304M0FLWEVEDW1BQRYWA4RHW5ACLGMJOVZZ4SP5TZLSGR25M";
 
     if (!apiKey) {
       return { error: "Servis geçici olarak kullanılamıyor." };
@@ -100,7 +139,7 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
     const { locationStr, intentQuery, activeRegionBbox } = data;
     const providedLat = data.lat;
     const providedLng = data.lng;
-    const foursquareApiKey = process.env['FOURSQUARE_API_KEY'];
+    const foursquareApiKey = process.env['FOURSQUARE_API_KEY'] || process.env['VITE_FOURSQUARE_API_KEY'] || "304M0FLWEVEDW1BQRYWA4RHW5ACLGMJOVZZ4SP5TZLSGR25M";
 
     if (!foursquareApiKey) {
       return { error: { message: "Servis geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin." } };

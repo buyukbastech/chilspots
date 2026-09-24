@@ -33,7 +33,7 @@ async function seedVenues() {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': googleApiKey,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.priceLevel,places.rating,places.userRatingCount,places.photos,places.currentOpeningHours,places.internationalPhoneNumber,places.types'
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.priceLevel,places.rating,places.userRatingCount,places.photos,places.types'
         },
         body: JSON.stringify({
           textQuery: query,
@@ -58,7 +58,7 @@ async function seedVenues() {
       const dbVenues = data.places.map((place) => {
         let image_url = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80";
         if (place.photos && place.photos.length > 0) {
-          image_url = `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=800&maxWidthPx=1280&key=${googleApiKey}`;
+          image_url = `photo:${place.photos[0].name}`;
         }
         let price_level = place.priceLevel === "PRICE_LEVEL_EXPENSIVE" ? "₺₺₺" : (place.priceLevel === "PRICE_LEVEL_MODERATE" ? "₺₺" : (place.priceLevel === "PRICE_LEVEL_INEXPENSIVE" ? "₺" : ""));
         

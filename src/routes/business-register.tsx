@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Store, User, Mail, Briefcase, MapPin, Building, Tags, Sparkles, KeyRound, ArrowRight, ArrowLeft, Loader2, CheckCircle2, Globe, Map } from "lucide-react";
+import { Store, User, Mail, Briefcase, MapPin, Building, Tags, Sparkles, KeyRound, ArrowRight, ArrowLeft, Loader2, CheckCircle2, Globe, Map, Phone, Clock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Country, State, City } from "country-state-city";
@@ -19,6 +19,42 @@ function BusinessRegister() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const VIBE_OPTIONS = [
+    { value: "Yorgun", label: t('venueTired') },
+    { value: "Keyifli & Enerjik", label: t('venueCheerful') },
+    { value: "Sakin", label: t('venueCalm') },
+    { value: "Melankolik", label: t('venueMelancholic') },
+    { value: "Sosyal", label: t('venueSocial') },
+    { value: "Meraklı", label: t('venueCurious') },
+    { value: "Romantik", label: t('venueRomantic') },
+    { value: "Nostaljik", label: t('venueNostalgic') },
+    { value: "Eğlence", label: t('venueFun') },
+    { value: "Rahat", label: t('venueChill') }
+  ];
+
+  const DAYS = [
+    { key: 'monday', label: 'Pazartesi' },
+    { key: 'tuesday', label: 'Salı' },
+    { key: 'wednesday', label: 'Çarşamba' },
+    { key: 'thursday', label: 'Perşembe' },
+    { key: 'friday', label: 'Cuma' },
+    { key: 'saturday', label: 'Cumartesi' },
+    { key: 'sunday', label: 'Pazar' },
+  ];
+
+  const handleWorkingHourChange = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      workingHours: {
+        ...prev.workingHours,
+        [day]: {
+          ...(prev.workingHours as any)[day],
+          [field]: value
+        }
+      }
+    }));
+  };
+
   // Form State
   const [formData, setFormData] = useState({
     fullName: "",
@@ -28,12 +64,23 @@ function BusinessRegister() {
     address: "",
     taxId: "",
     businessType: "",
-    venueType: "",
+    venueTypes: [] as string[],
     country: "",
     region: "",
     district: "",
     confirmEmail: "",
     password: "",
+    phone: "",
+    website: "",
+    workingHours: {
+      monday: { open: "09:00", close: "22:00", closed: false },
+      tuesday: { open: "09:00", close: "22:00", closed: false },
+      wednesday: { open: "09:00", close: "22:00", closed: false },
+      thursday: { open: "09:00", close: "22:00", closed: false },
+      friday: { open: "09:00", close: "23:59", closed: false },
+      saturday: { open: "10:00", close: "23:59", closed: false },
+      sunday: { open: "10:00", close: "22:00", closed: false },
+    }
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -42,8 +89,8 @@ function BusinessRegister() {
 
   const handleNextStep = () => {
     // Validate step 1
-    if (!formData.fullName || !formData.businessName || !formData.businessEmail || !formData.address || !formData.taxId || !formData.businessType || !formData.venueType || !formData.country || !formData.region || !formData.district) {
-      setError("Lütfen zorunlu tüm alanları doldurun.");
+    if (!formData.fullName || !formData.businessName || !formData.businessEmail || !formData.address || !formData.taxId || !formData.businessType || formData.venueTypes.length === 0 || !formData.country || !formData.region || !formData.district) {
+      setError("Lütfen zorunlu tüm alanları doldurun ve en az bir mekan tarzı seçin.");
       return;
     }
     setError(null);
@@ -91,10 +138,13 @@ function BusinessRegister() {
           address: formData.address,
           tax_id: formData.taxId,
           business_type: formData.businessType,
-          venue_type: formData.venueType,
+          venue_type: formData.venueTypes, // Now an array
           country: formData.country,
           region: formData.region,
           district: formData.district,
+          phone: formData.phone,
+          website: formData.website,
+          working_hours: formData.workingHours,
           status: 'pending'
         });
 
@@ -208,6 +258,24 @@ function BusinessRegister() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Telefon (Opsiyonel)</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" placeholder="+90 555 123 45 67" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Web Sitesi (Opsiyonel)</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <input type="url" name="website" value={formData.website} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" placeholder="https://isletme.com" />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">{t('country')}</label>
@@ -308,24 +376,56 @@ function BusinessRegister() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">{t('yourVenueStyle')}</label>
-                  <div className="relative">
-                    <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-                    <select name="venueType" value={formData.venueType} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer" required>
-                      <option value="" disabled className="bg-gray-900">{t('choose')}</option>
-                      <option value="Yorgun" className="bg-gray-900">{t('venueTired')}</option>
-                      <option value="Keyifli & Enerjik" className="bg-gray-900">{t('venueCheerful')}</option>
-                      <option value="Sakin" className="bg-gray-900">{t('venueCalm')}</option>
-                      <option value="Melankolik" className="bg-gray-900">{t('venueMelancholic')}</option>
-                      <option value="Sosyal" className="bg-gray-900">{t('venueSocial')}</option>
-                      <option value="Meraklı" className="bg-gray-900">{t('venueCurious')}</option>
-                      <option value="Romantik" className="bg-gray-900">{t('venueRomantic')}</option>
-                      <option value="Nostaljik" className="bg-gray-900">{t('venueNostalgic')}</option>
-                      <option value="Eğlence" className="bg-gray-900">{t('venueFun')}</option>
-                      <option value="Rahat" className="bg-gray-900">{t('venueChill')}</option>
-                    </select>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-muted-foreground">{t('yourVenueStyle')} (Çoklu Seçim)</label>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {VIBE_OPTIONS.map(vibe => {
+                      const isSelected = formData.venueTypes.includes(vibe.value);
+                      return (
+                        <button
+                          key={vibe.value}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => {
+                              const types = prev.venueTypes;
+                              if (types.includes(vibe.value)) return { ...prev, venueTypes: types.filter(t => t !== vibe.value) };
+                              return { ...prev, venueTypes: [...types, vibe.value] };
+                            });
+                          }}
+                          className={cn("px-4 py-2 rounded-xl text-sm transition-all border", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-black/50 border-white/10 text-white hover:bg-white/10")}
+                        >
+                          {vibe.label}
+                        </button>
+                      );
+                    })}
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-6 border-t border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-white flex items-center"><Clock className="w-5 h-5 mr-2 text-primary" /> Çalışma Saatleri <span className="text-red-500 ml-1">*</span></h3>
+                </div>
+                <div className="space-y-3">
+                  {DAYS.map(day => {
+                    const hours = (formData.workingHours as any)[day.key];
+                    return (
+                      <div key={day.key} className="flex items-center gap-4 bg-black/30 p-3 rounded-xl border border-white/5">
+                        <div className="w-24 font-medium text-sm text-gray-300">{day.label}</div>
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                          <input type="checkbox" checked={hours.closed} onChange={(e) => handleWorkingHourChange(day.key, 'closed', e.target.checked)} className="rounded bg-black/50 border-white/10 text-primary" />
+                          Kapalı
+                        </label>
+                        {!hours.closed && (
+                          <div className="flex items-center gap-2 flex-1 justify-end">
+                            <input type="time" value={hours.open} onChange={(e) => handleWorkingHourChange(day.key, 'open', e.target.value)} className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary/50" required />
+                            <span className="text-muted-foreground">-</span>
+                            <input type="time" value={hours.close} onChange={(e) => handleWorkingHourChange(day.key, 'close', e.target.value)} className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary/50" required />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
