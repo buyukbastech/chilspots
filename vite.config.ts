@@ -1,5 +1,6 @@
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -9,6 +10,7 @@ export default defineConfig(async ({ command }) => {
     tanstackStart({
       server: { entry: 'server' },
     }),
+    react(),
     tailwindcss(),
     tsconfigPaths({ projects: ['./tsconfig.json'] }),
     VitePWA({
