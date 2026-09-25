@@ -311,8 +311,8 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
           } catch (staleCacheErr) {}
         }
         
-        return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor." }, status: 500 };
+        return { error: { message: `(Canlı Log) Google API isteği başarısız oldu. API Key okundu mu?: ${!!googleApiKey}. Hata Detayı: ${typeof e === 'object' ? JSON.stringify(e.response?.data || e.message || 'Bilinmeyen Hata') : e}` }, status: 500 };
       }
     }
-    return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor." }, status: 500 };
+    return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor (Max Retry aşıldı)." }, status: 500 };
   });
