@@ -46,32 +46,48 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
     }
 
     try {
-      let url = "";
       if (photoName.includes('/')) {
-        url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&key=${apiKey}`;
-      } else {
-        url = `https://maps.googleapis.com/maps/api/place/photo?maxheight=${maxHeight}&maxwidth=${maxWidth}&photoreference=${photoName}&key=${apiKey}`;
-      }
-      const res = await fetch(url, { redirect: 'manual' });
-      
-      if (res.status === 301 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
-        const locationUrl = res.headers.get('location');
-        if (locationUrl && supabaseServer) {
-          // Save to cache
-          try {
-            await supabaseServer.from('photo_cache').upsert({
-              photo_name: photoName,
-              photo_url: locationUrl,
-              fetched_at: new Date().toISOString()
-            }, { onConflict: 'photo_name' });
-          } catch (cacheErr) {
-            console.error("Cache save error:", cacheErr);
+        const url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true&key=${apiKey}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.photoUri) {
+            if (supabaseServer) {
+              try {
+                await supabaseServer.from('photo_cache').upsert({
+                  photo_name: photoName,
+                  photo_url: json.photoUri,
+                  fetched_at: new Date().toISOString()
+                }, { onConflict: 'photo_name' });
+              } catch (cacheErr) {
+                console.error("Cache save error:", cacheErr);
+              }
+            }
+            return { url: json.photoUri };
           }
         }
-        return { url: locationUrl };
+        return { url: null };
+      } else {
+        const url = `https://maps.googleapis.com/maps/api/place/photo?maxheight=${maxHeight}&maxwidth=${maxWidth}&photoreference=${photoName}&key=${apiKey}`;
+        const res = await fetch(url, { redirect: 'manual' });
+        
+        if (res.status === 301 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
+          const locationUrl = res.headers.get('location');
+          if (locationUrl && supabaseServer) {
+            try {
+              await supabaseServer.from('photo_cache').upsert({
+                photo_name: photoName,
+                photo_url: locationUrl,
+                fetched_at: new Date().toISOString()
+              }, { onConflict: 'photo_name' });
+            } catch (cacheErr) {
+              console.error("Cache save error:", cacheErr);
+            }
+          }
+          return { url: locationUrl };
+        }
+        return { url: null };
       }
-      
-      return { url: null };
     } catch (e) {
       return { url: null };
     }
