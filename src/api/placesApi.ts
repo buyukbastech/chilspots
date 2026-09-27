@@ -311,7 +311,8 @@ export const fetchVenuesFromServer = createServerFn({ method: 'GET' })
           } catch (staleCacheErr) {}
         }
         
-        return { error: { message: `(Canlı Log) Google API isteği başarısız oldu. API Key okundu mu?: ${!!googleApiKey}. Hata Detayı: ${typeof e === 'object' ? JSON.stringify(e.response?.data || e.message || 'Bilinmeyen Hata') : e}` }, status: 500 };
+        const maskedKey = googleApiKey ? googleApiKey.substring(0, 10) + '...' : 'yok';
+        return { error: { message: `(Canlı Log) Google API isteği başarısız oldu. Kullanılan Key: ${maskedKey}. Hata Detayı: ${typeof e === 'object' ? JSON.stringify(e.response?.data || e.message || 'Bilinmeyen Hata') : e}` }, status: 500 };
       }
     }
     return { error: { message: "Şu anda mekan bilgilerine ulaşılamıyor (Max Retry aşıldı)." }, status: 500 };
