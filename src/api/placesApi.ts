@@ -47,8 +47,12 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
 
     try {
       if (photoName.includes('/')) {
-        const url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true&key=${apiKey}`;
-        const res = await fetch(url);
+        const url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true`;
+        const res = await fetch(url, {
+          headers: {
+            "X-Goog-Api-Key": apiKey
+          }
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.photoUri) {
