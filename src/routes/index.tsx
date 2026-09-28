@@ -94,15 +94,29 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
       }
 
       if (targetPhotoName) {
-        // Doğrudan istemci üzerinden resmi çekmeyi deniyoruz (Vercel sunucu kısıtlamalarını ve Referer hatalarını aşmak için)
+        // İstemci üzerinden JSON alarak resmi çekmeyi deniyoruz (Vercel kısıtlamalarını aşmak için)
         const clientApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
         if (clientApiKey && targetPhotoName.includes('/')) {
           const maxHeight = isThumbnail ? 96 : 800;
           const maxWidth = isThumbnail ? 96 : 1280;
-          const directUrl = `https://places.googleapis.com/v1/${targetPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&key=${clientApiKey}`;
-          if (isMounted) {
-            setPhotoUrl(directUrl);
-          }
+          const fetchUrl = `https://places.googleapis.com/v1/${targetPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true&key=${clientApiKey}`;
+          
+          fetch(fetchUrl)
+            .then(res => res.json())
+            .then(json => {
+              if (json.photoUri && isMounted) {
+                setPhotoUrl(json.photoUri);
+              }
+            })
+            .catch(err => {
+              console.error("Client photo fetch error:", err);
+              // Fallback to server if client fetch fails
+              getPhotoUrlFromServer({ 
+                data: { photoName: targetPhotoName, maxHeight, maxWidth } 
+              }).then((res) => { 
+                if (res?.url && isMounted) setPhotoUrl(res.url); 
+              });
+            });
           return;
         }
 
