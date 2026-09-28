@@ -47,12 +47,47 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
 
     try {
       if (photoName.includes('/')) {
-        const url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true`;
-        const res = await fetch(url, {
+        let url = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true`;
+        let res = await fetch(url, {
           headers: {
             "X-Goog-Api-Key": apiKey
           }
         });
+        
+        // Google photo tokens expire! If we get 400 or error, we must refresh the token by fetching the place again.
+        if (!res.ok) {
+          const match = photoName.match(/places\/([^\/]+)\/photos/);
+          if (match && match[1]) {
+            const placeId = match[1];
+            const placeRes = await fetch(`https://places.googleapis.com/v1/places/${placeId}?fields=photos`, {
+              headers: { "X-Goog-Api-Key": apiKey }
+            });
+            if (placeRes.ok) {
+              const placeJson = await placeRes.json();
+              if (placeJson.photos && placeJson.photos.length > 0) {
+                const freshPhotoName = placeJson.photos[0].name;
+                url = `https://places.googleapis.com/v1/${freshPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true`;
+                res = await fetch(url, { headers: { "X-Goog-Api-Key": apiKey } });
+                
+                // Güncellenmiş token'ı veritabanına kaydet (Eski token referansıyla arandığında yenisi dönsün)
+                if (res.ok && supabaseServer) {
+                  try {
+                    const freshJson = await res.json();
+                    if (freshJson.photoUri) {
+                      await supabaseServer.from('photo_cache').upsert({
+                        photo_name: photoName, // İstemci hala eski ismi arayacağı için cache key eski isim olmalı!
+                        photo_url: freshJson.photoUri,
+                        fetched_at: new Date().toISOString()
+                      }, { onConflict: 'photo_name' });
+                      return { url: freshJson.photoUri };
+                    }
+                  } catch (e) {}
+                }
+              }
+            }
+          }
+        }
+
         if (res.ok) {
           const json = await res.json();
           if (json.photoUri) {

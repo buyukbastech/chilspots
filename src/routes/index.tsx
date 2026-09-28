@@ -102,15 +102,19 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
           const fetchUrl = `https://places.googleapis.com/v1/${targetPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true&key=${clientApiKey}`;
           
           fetch(fetchUrl)
-            .then(res => res.json())
+            .then(res => {
+              if (!res.ok) throw new Error("HTTP " + res.status);
+              return res.json();
+            })
             .then(json => {
               if (json.photoUri && isMounted) {
                 setPhotoUrl(json.photoUri);
+              } else {
+                throw new Error("No photoUri in response");
               }
             })
             .catch(err => {
-              console.error("Client photo fetch error:", err);
-              // Fallback to server if client fetch fails
+              console.error("Client photo fetch error, falling back to server:", err);
               getPhotoUrlFromServer({ 
                 data: { photoName: targetPhotoName, maxHeight, maxWidth } 
               }).then((res) => { 
