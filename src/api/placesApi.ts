@@ -64,7 +64,12 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
               }
             }
             return { url: json.photoUri };
+          } else {
+            console.error("[getPhotoUrlFromServer] Google returned OK but no photoUri:", json);
           }
+        } else {
+          const errorText = await res.text();
+          console.error(`[getPhotoUrlFromServer] Google API fetch failed. Status: ${res.status}. Body: ${errorText}`);
         }
         return { url: null };
       } else {

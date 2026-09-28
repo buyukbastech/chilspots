@@ -94,6 +94,18 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
       }
 
       if (targetPhotoName) {
+        // Doğrudan istemci üzerinden resmi çekmeyi deniyoruz (Vercel sunucu kısıtlamalarını ve Referer hatalarını aşmak için)
+        const clientApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+        if (clientApiKey && targetPhotoName.includes('/')) {
+          const maxHeight = isThumbnail ? 96 : 800;
+          const maxWidth = isThumbnail ? 96 : 1280;
+          const directUrl = `https://places.googleapis.com/v1/${targetPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&key=${clientApiKey}`;
+          if (isMounted) {
+            setPhotoUrl(directUrl);
+          }
+          return;
+        }
+
         getPhotoUrlFromServer({ 
           data: { 
             photoName: targetPhotoName, 
