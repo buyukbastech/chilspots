@@ -305,12 +305,14 @@ function Index() {
     return () => { clearTimeout(timer1); clearTimeout(timer2); };
   }, []);
 
-  const searchVenues = async (locationStr: string, vibeStr: string = activeVibe, lat?: number, lng?: number) => {
-    // KESİN GÜVENLİK KONTROLÜ: Herhangi bir arama yapılmadan önce oturum kontrolü
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    if (!currentSession) {
-      setIsLoginModalOpen(true);
-      return;
+  const searchVenues = async (locationStr: string, vibeStr: string = activeVibe, lat?: number, lng?: number, isAutoLoad: boolean = false) => {
+    // KESİN GÜVENLİK KONTROLÜ: Sadece kullanıcı etkileşimiyle olan aramalarda oturum sor
+    if (!isAutoLoad) {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        setIsLoginModalOpen(true);
+        return;
+      }
     }
 
     const apiKey = "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
@@ -458,13 +460,13 @@ function Index() {
 
   useEffect(() => {
     if (!hasInitialSearch && session !== undefined) {
-      searchVenues(activeRegion, activeVibe, activeRegionLat, activeRegionLng);
+      searchVenues(activeRegion, activeVibe, activeRegionLat, activeRegionLng, true);
     }
   }, [hasInitialSearch, session]);
 
   useEffect(() => {
     if (hasInitialSearch) {
-      searchVenues(activeRegion, activeVibe);
+      searchVenues(activeRegion, activeVibe, undefined, undefined, true);
     }
   }, [language]);
   
