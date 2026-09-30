@@ -73,16 +73,19 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
                 url = `https://places.googleapis.com/v1/${freshPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true`;
                 res = await fetch(url, { headers: { "X-Goog-Api-Key": apiKey } });
                 
-                // Güncellenmiş token'ı veritabanına kaydet (Eski token referansıyla arandığında yenisi dönsün)
-                if (res.ok && supabaseServer) {
+                if (res.ok) {
                   try {
                     const freshJson = await res.json();
                     if (freshJson.photoUri) {
-                      await supabaseServer.from('photo_cache').upsert({
-                        photo_name: photoName, // İstemci hala eski ismi arayacağı için cache key eski isim olmalı!
-                        photo_url: freshJson.photoUri,
-                        fetched_at: new Date().toISOString()
-                      }, { onConflict: 'photo_name' });
+                      if (supabaseServer) {
+                        try {
+                          await supabaseServer.from('photo_cache').upsert({
+                            photo_name: photoName,
+                            photo_url: freshJson.photoUri,
+                            fetched_at: new Date().toISOString()
+                          }, { onConflict: 'photo_name' });
+                        } catch (cacheErr) {}
+                      }
                       return { url: freshJson.photoUri };
                     }
                   } catch (e) {}
