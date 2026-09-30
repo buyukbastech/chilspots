@@ -209,7 +209,7 @@ export function LoginModal({ children, open: controlledOpen, onOpenChange: contr
               {/* BUSINESS TAB */}
               <TabsContent value="business" className="mt-4 space-y-4">
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-sm text-center mb-4">
-                  İşletmenizi yönetmek ve istatistikleri görmek için giriş yapın.
+                  {t('businessLoginDesc')}
                 </div>
                 
                 <form onSubmit={(e) => handleEmailAuth(e, 'business')} className="space-y-4">

@@ -18,6 +18,7 @@ const translations: Translations = {
   // Auth Modal
   userLogin: { tr: "Kullanıcı Girişi", en: "User Login" },
   businessLogin: { tr: "İşletme Girişi", en: "Business Login" },
+  businessLoginDesc: { tr: "İşletmenizi yönetmek ve istatistikleri görmek için giriş yapın.", en: "Log in to manage your business and view statistics." },
   loginWithGoogle: { tr: "Google ile Giriş Yap", en: "Sign in with Google" },
   email: { tr: "E-posta", en: "Email" },
   password: { tr: "Şifre", en: "Password" },
@@ -115,6 +116,7 @@ const translations: Translations = {
   shareExperience: { tr: "Deneyiminizi Paylaşın", en: "Share Your Experience" },
   writeReview: { tr: "Bu mekan hakkında ne düşünüyorsunuz?", en: "What do you think about this venue?" },
   submitReview: { tr: "Yorum Gönder", en: "Submit Review" },
+  loginToReview: { tr: "Yorum yapabilmek için lütfen giriş yapın.", en: "Please log in to leave a review." },
   photoNotFound: { tr: "Fotoğraf bulunamadı", en: "Photo not found" },
   hiddenUser: { tr: "Gizli Kullanıcı", en: "Hidden User" },
 

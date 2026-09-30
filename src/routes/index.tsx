@@ -96,7 +96,8 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
       }
 
       if (targetPhotoName) {
-        const clientApiKey = (import.meta.env as any).VITE_GOOGLE_PLACES_API_KEY;
+        // @ts-ignore
+        const clientApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
         console.log("CLIENT API KEY in VenueImage:", clientApiKey);
         if (clientApiKey && targetPhotoName.includes('/')) {
           const maxHeight = isThumbnail ? 96 : 800;
@@ -781,7 +782,7 @@ function Index() {
               }}
             >
               <Search className="h-5 w-5" />
-              <span className="ml-2 lg:hidden font-bold">Mekan Bul</span>
+              <span className="ml-2 lg:hidden font-bold">{t('searchVenues')}</span>
             </Button>
           </div>
 
@@ -972,13 +973,13 @@ function Index() {
               
               <div className="mb-6 grid grid-cols-2 gap-3">
                  <div className="rounded-xl bg-accent p-3">
-                   <p className="text-xs text-muted-foreground">Fiyat Seviyesi</p>
+                   <p className="text-xs text-muted-foreground">{t('priceLevel')}</p>
                    <p className="font-semibold">{selectedVenue.price}</p>
                  </div>
                  <div className="rounded-xl bg-accent p-3">
-                   <p className="text-xs text-muted-foreground">Şu Anki Durum</p>
+                   <p className="text-xs text-muted-foreground">{t('currentStatus')}</p>
                    <p className={cn("font-semibold", selectedVenue.details?.openNow === false ? "text-red-500" : "text-green-500")}>
-                     {selectedVenue.details?.openNow === undefined ? "Bilinmiyor" : (selectedVenue.details?.openNow ? "Açık" : "Kapalı")}
+                     {selectedVenue.details?.openNow === undefined ? t('unknown') : (selectedVenue.details?.openNow ? t('openNow') : t('closed'))}
                    </p>
                  </div>
               </div>
@@ -994,7 +995,7 @@ function Index() {
               )}
 
               <Button variant="glow" className="w-full rounded-xl py-6 text-base" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedVenue.lat},${selectedVenue.lng}`, '_blank')}>
-                <MapPin className="mr-2 h-5 w-5" /> Haritada Aç
+                <MapPin className="mr-2 h-5 w-5" /> {t('getDirections')}
               </Button>
             </div>
           </div>

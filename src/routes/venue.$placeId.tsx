@@ -68,7 +68,7 @@ function ReviewForm({ onSubmit, user }: { onSubmit: (text: string, rating: numbe
     return (
       <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6 shadow-xl backdrop-blur-md mb-8 text-center">
         <h3 className="font-bold mb-4 text-lg">{t('shareExperience')}</h3>
-        <p className="text-muted-foreground mb-4">Yorum yapabilmek için lütfen giriş yapın.</p>
+        <p className="text-muted-foreground mb-4">{t('loginToReview')}</p>
       </div>
     );
   }
@@ -150,6 +150,37 @@ function VenueDetails() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [session, setSession] = useState<any>(null);
+
+  // Swipe handling state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      if (venue?.photos) {
+         setSelectedPhotoIndex((prev) => (prev! < venue.photos.length - 1 ? prev! + 1 : 0));
+      }
+    } else if (isRightSwipe) {
+      if (venue?.photos) {
+         setSelectedPhotoIndex((prev) => (prev! > 0 ? prev! - 1 : venue.photos.length - 1));
+      }
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -574,7 +605,13 @@ function VenueDetails() {
           </div>
 
           {/* Image */}
-          <div className="relative h-full w-full flex items-center justify-center p-4 md:p-12" onClick={() => setSelectedPhotoIndex(null)}>
+          <div 
+            className="relative h-full w-full flex items-center justify-center p-4 md:p-12" 
+            onClick={() => setSelectedPhotoIndex(null)}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
             <SafeImage 
               photoName={venue.photos[selectedPhotoIndex].name || venue.photos[selectedPhotoIndex].photo_reference}
               maxHeight={1080}
