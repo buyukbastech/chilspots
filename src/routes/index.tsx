@@ -96,8 +96,8 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
       }
 
       if (targetPhotoName) {
-        // İstemci üzerinden JSON alarak resmi çekmeyi deniyoruz (Vercel kısıtlamalarını aşmak için)
-        const clientApiKey = import.meta.env['VITE_GOOGLE_PLACES_API_KEY'];
+        // @ts-ignore
+        const clientApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
         if (clientApiKey && targetPhotoName.includes('/')) {
           const maxHeight = isThumbnail ? 96 : 800;
           const maxWidth = isThumbnail ? 96 : 1280;
