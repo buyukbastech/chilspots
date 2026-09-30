@@ -15,6 +15,7 @@ import {
   Map,
   MapPin,
   Minus,
+  Moon,
   PartyPopper,
   Plus,
   Search,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Star,
   Store,
+  Sun,
   User,
   Users,
   Waves,
@@ -794,6 +796,28 @@ function Index() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Theme Toggle Button */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              aria-label="Toggle Theme" 
+              onClick={() => {
+                const html = document.documentElement;
+                if (html.classList.contains('light')) {
+                  html.classList.remove('light');
+                  localStorage.setItem('theme', 'dark');
+                } else {
+                  html.classList.add('light');
+                  localStorage.setItem('theme', 'light');
+                }
+              }}
+            >
+              <Sun className="h-[1.2rem] w-[1.2rem] theme-icon-sun" />
+              <Moon className="h-[1.2rem] w-[1.2rem] theme-icon-moon" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+
             <Button variant="ghost" size="icon" aria-label={t('notifications')} className="relative"><Bell /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary" /></Button>
             {session ? (
               <Button variant="glass" className="ml-1 rounded-full px-2 sm:px-3" onClick={() => navigate({ to: '/profile' })}>

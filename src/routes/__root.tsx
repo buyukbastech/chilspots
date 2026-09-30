@@ -138,6 +138,17 @@ function RootShell({ children }: { children: ReactNode }) {
             <img src="https://mc.yandex.ru/watch/112814866" style={{ position: "absolute", left: "-9999px" }} alt="" />
           </div>
         </noscript>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (localStorage.getItem('theme') === 'light') {
+                  document.documentElement.classList.add('light');
+                }
+              } catch (_) {}
+            `
+          }}
+        />
       </head>
       <body>
         {children}
