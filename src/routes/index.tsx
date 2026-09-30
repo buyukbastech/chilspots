@@ -306,6 +306,13 @@ function Index() {
   }, []);
 
   const searchVenues = async (locationStr: string, vibeStr: string = activeVibe, lat?: number, lng?: number) => {
+    // KESİN GÜVENLİK KONTROLÜ: Herhangi bir arama yapılmadan önce oturum kontrolü
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (!currentSession) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
     const apiKey = "AIzaSyAu9A-k9X4aKM3prE6HdVOX7PKor8nqn_o";
     if (!apiKey) {
       setApiError("Servis geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
