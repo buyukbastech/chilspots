@@ -97,36 +97,6 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
 
       if (targetPhotoName) {
         // @ts-ignore
-        const clientApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-        console.log("CLIENT API KEY in VenueImage:", clientApiKey);
-        if (clientApiKey && targetPhotoName.includes('/')) {
-          const maxHeight = isThumbnail ? 96 : 800;
-          const maxWidth = isThumbnail ? 96 : 1280;
-          const fetchUrl = `https://places.googleapis.com/v1/${targetPhotoName}/media?maxHeightPx=${maxHeight}&maxWidthPx=${maxWidth}&skipHttpRedirect=true&key=${clientApiKey}`;
-          
-          fetch(fetchUrl)
-            .then(res => {
-              if (!res.ok) throw new Error("HTTP " + res.status);
-              return res.json();
-            })
-            .then(json => {
-              if (json.photoUri && isMounted) {
-                setPhotoUrl(json.photoUri);
-              } else {
-                throw new Error("No photoUri in response");
-              }
-            })
-            .catch(err => {
-              console.error("Client photo fetch error, falling back to server:", err);
-              getPhotoUrlFromServer({ 
-                data: { photoName: targetPhotoName, maxHeight, maxWidth } 
-              }).then((res) => { 
-                if (res?.url && isMounted) setPhotoUrl(res.url); 
-              });
-            });
-          return;
-        }
-
         getPhotoUrlFromServer({ 
           data: { 
             photoName: targetPhotoName, 
@@ -138,6 +108,9 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
           if (res?.url && isMounted) {
             setPhotoUrl(res.url); 
           }
+        })
+        .catch(err => {
+          console.error("Server photo fetch error:", err);
         });
       }
     }
