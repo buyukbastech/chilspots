@@ -16,7 +16,11 @@ export const getPhotoUrlFromServer = createServerFn({ method: 'GET' })
     }
 
     // Fallback for old Google photos or Supabase photos
-    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'];
+    const apiKey = process.env['GOOGLE_PLACES_SECRET_KEY'] || process.env['VITE_GOOGLE_PLACES_API_KEY'] || import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+    console.log("[SERVER FETCH] getPhotoUrlFromServer called with photoName:", photoName);
+    console.log("[SERVER FETCH] process.env.VITE_GOOGLE_PLACES_API_KEY:", process.env['VITE_GOOGLE_PLACES_API_KEY']);
+    console.log("[SERVER FETCH] import.meta.env.VITE_GOOGLE_PLACES_API_KEY:", import.meta.env.VITE_GOOGLE_PLACES_API_KEY);
+    console.log("[SERVER FETCH] Resolved apiKey:", apiKey ? "EXISTS" : "UNDEFINED");
     if (!apiKey) return { url: null };
 
     // Initialize supabaseServer

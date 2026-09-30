@@ -98,6 +98,7 @@ function VenueImage({ venue, isThumbnail = false, className = "" }: { venue: any
       if (targetPhotoName) {
         // @ts-ignore
         const clientApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+        console.log("CLIENT API KEY in VenueImage:", clientApiKey);
         if (clientApiKey && targetPhotoName.includes('/')) {
           const maxHeight = isThumbnail ? 96 : 800;
           const maxWidth = isThumbnail ? 96 : 1280;
